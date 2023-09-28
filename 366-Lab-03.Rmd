@@ -1,0 +1,191 @@
+---
+title: "Homework 3"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+  pdf_document:
+    toc: yes
+subtitle: 'MTH 366: Machine Learning'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes by starting your line with ">" to denote your response). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an HTML/PDF file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your HTML/PDF file and upload to BlueLine.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+```
+
+In class, we used several classification techniques to predict the probability of default using income and balance on the Default data set. We'll now use pre-processing and cross-validation to estimate the testing error of $k$-nearest neighbors using the validation set approach.
+
+_Hint: Set a random seed before beginning, and use the output in your compiled document to support your answers._
+
+```{r}
+library(ISLR)
+library(caret)
+library(tidyverse)
+library(nnet)
+data(Default)
+
+head(Default)
+
+set.seed(366)
+```
+
+## Question 1
+
+Before building our model, we should pre-process our data. Write a pre-process statement to _standardize_ income and balance.
+
+```{r, echo=FALSE, warning=FALSE}
+Default$balance = (Default$balance - min(Default$balance)) / (max(Default$balance)- min(Default$balance))
+
+Default  = Default %>% mutate(income = (income - min(income))/(max(income) - min(income)))
+
+head(Default)
+```
+
+## Question 2
+
+Create 10 sets of training and testing data using a 75-25% split.
+```{r, echo=FALSE, warning=FALSE}
+trainData = createDataPartition(Default$default, p = 0.75, list = FALSE, times = 10)
+
+
+```
+
+
+## Question 3
+
+For each of your 10 sets of training and testing data: 
+
+(1) fit the k-nearest neighbors model, 
+(2) store the optimal k and training accuracy, 
+(3) make predictions on the testing data, and 
+(4) store the testing accuracy. 
+
+Choose four values of $k$ for your tuning grid (Dr. SM's testing suggested that $k<20$ is too little and $k>50$ is too much). How long did it take your code to execute?
+
+_Hint: There is a function in the `nnet` package in R called `which.is.max`. You may find it useful._ 😎 
+
+```{r, cache=TRUE}
+start = Sys.time()
+k_value = rep(0,10)
+trainAccu = rep(0,10)
+testAccu = rep(0,10)
+k = data.frame(k = c(20,30,40,50))
+
+for(i in 1:10){
+  Train = Default[trainData[,i],]
+  Test = Default[-trainData[,i],]
+  
+  model = train(default~balance + income, data = Train, method = "knn", tuneGrid = k)
+  
+  index = which.is.max(model$results[,2])
+  k_value[i] = model$results[index,1]
+  prediction = predict(model, newdata = Test)
+  result = confusionMatrix(prediction, Test$default)
+  testAccu[i] = result$overall[1]
+  model$results
+  
+}
+
+Sys.time() - start
+```
+
+
+## Question 4
+
+Plot the optimal k, training accuracy, and testing accuracy for your 10 cross validation sets. Comment on the distribution.
+
+```{r, echo=FALSE}
+data_result = tibble(k_value, trainAccu = trainAccu, testAccu = testAccu)
+
+data_result %>% ggplot(aes(x = 1:10, y = k_value)) + geom_line()
+
+data_result %>% ggplot(aes(y = k_value)) + geom_histogram()
+
+
+```
+
+
+## Question 5
+
+Now, use the build-in 10-fold cross validation in the train() function. Note, when fitting the model, you should use whole data since the function will do the sample splitting, fitting and evaluation. Comment on the result. 
+
+```{r, echo=FALSE}
+start2 = Sys.time()
+
+fitControl_cv10 = trainControl(method = "cv", number = 10)
+
+model2 <- train(default ~ balance + income, data = Train, method = "knn", tuneGrid = k, trControl = fitControl_cv10)
+
+model2
+prediction = predict(model, Test)
+confusionMatrix(prediction, Test$default)
+Sys.time() - start2
+```
+
+
+## Question 6 (complete by yourself)
+
+Repeat part question 3 for 50 sets of training and testing data. Use the same tuning grid you selected previously. How long did it take your code to execute?
+
+It took my code 29 minutes to execute.
+
+```{r, cache=TRUE, echo=FALSE}
+trainData = createDataPartition(Default$default, p = 0.75, list = FALSE, times = 50)
+start = Sys.time()
+k_value = rep(0,50)
+trainAccu = rep(0,50)
+testAccu = rep(0,50)
+k = data.frame(k = c(20,30,40,50))
+
+for(i in 1:50){
+  Train = Default[trainData[,i],]
+  Test = Default[-trainData[,i],]
+  
+  model = train(default~balance + income, data = Train, method = "knn", tuneGrid = k)
+  
+  inde2 = which.is.max(model$results[,2])
+  k_value[i] = model$results[index,1]
+  prediction = predict(model, newdata = Test)
+  result = confusionMatrix(prediction, Test$default)
+  testAccu[i] = result$overall[1]
+  model$results
+  
+}
+
+Sys.time() - start
+```
+
+
+## Question 7 (complete by yourself)
+
+Plot the optimal k, training accuracy, and testing accuracy for your 50 cross-validation sets. Comment on the distribution.
+
+```{r, echo=FALSE, warning=FALSE}
+data_result = tibble(k_value, trainAccu = trainAccu, testAccu = testAccu)
+
+data_result %>% ggplot(aes(x = 1:50, y = k_value)) + geom_line()
+
+data_result %>% ggplot(aes(y = k_value)) + geom_histogram()
+```
+
+
+## Question 8 (complete by yourself)
+
+Based on your work so far, would you recommend using leave-one-out cross-validation for this data set? Explain why or why not.
+
+I would recommend not using leave-one=out cross validation as getting results can take significant time depending on the number of repetitions we want executed.

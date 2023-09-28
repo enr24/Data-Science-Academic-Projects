@@ -1,0 +1,329 @@
+---
+title: "Homework 2"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 362: Statistical Modeling'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes to denote your answer by putting a ">" at the beginning of the line). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an HTML/PDF file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your HTML file and upload to BlueLine.
+
+```{r}
+library(fivethirtyeight)
+library(tidyverse)
+
+# You might need to install this package
+# install.packages('ISLR')
+library(ISLR)
+data(College)
+College <- College %>% mutate(School=rownames(College))
+glimpse(College)
+```
+
+------------------------------------------------------------------------
+
+The `College` data set in the `ISLR` package contains information collected on a random sample of 777 US colleges and universities. The variables in this data include:
+
++---------------+-----------------------------------------------------------------------------+
+| Variable      | Description                                                                 |
++===============+=============================================================================+
+| `Private`     | A factor with levels `No` and `Yes` indicating private or public university |
++---------------+-----------------------------------------------------------------------------+
+| `Apps`        | Number of applications received                                             |
++---------------+-----------------------------------------------------------------------------+
+| `Accept`      | Number of applications accepted                                             |
++---------------+-----------------------------------------------------------------------------+
+| `Enroll`      | Number of new students enrolled                                             |
++---------------+-----------------------------------------------------------------------------+
+| `Top10perc`   | Percent of new students from top 10% of H.S. class                          |
++---------------+-----------------------------------------------------------------------------+
+| `Top25perc`   | Percent of new students from top 25% of H.S. class                          |
++---------------+-----------------------------------------------------------------------------+
+| `F.Undergrad` | Number of full-time undergraduates                                          |
++---------------+-----------------------------------------------------------------------------+
+| `P.Undergrad` | Number of part-time undergraduates                                          |
++---------------+-----------------------------------------------------------------------------+
+| `Outstate`    | Out-of-state tuition                                                        |
++---------------+-----------------------------------------------------------------------------+
+| `Room.Board`  | Room and board costs                                                        |
++---------------+-----------------------------------------------------------------------------+
+| `Books`       | Estimated book costs                                                        |
++---------------+-----------------------------------------------------------------------------+
+| `Personal`    | Estimated personal spending                                                 |
++---------------+-----------------------------------------------------------------------------+
+| `PhD`         | Percent of faculty with Ph.D.'s                                             |
++---------------+-----------------------------------------------------------------------------+
+| `Terminal`    | Percent of faculty with terminal degree                                     |
++---------------+-----------------------------------------------------------------------------+
+| `S.F.Ratio`   | Student/faculty ratio                                                       |
++---------------+-----------------------------------------------------------------------------+
+| `perc.alumni` | Percent of alumni who donate                                                |
++---------------+-----------------------------------------------------------------------------+
+| `Expend`      | Instructional expenditure per student                                       |
++---------------+-----------------------------------------------------------------------------+
+| `Grad.Rate`   | Graduation rate                                                             |
++---------------+-----------------------------------------------------------------------------+
+
+You've been asked to build a model to predict the number of freshmen that enroll each year (`Enroll`) based on these explanatory variables. (If the dollar values seem low, this data set comes from 1995.)
+
+## Question 1
+
+It's a good idea to visualize the relationships between variables in this data set before getting started.
+
+a) Describe the distribution of enrollment.
+
+> There are differences across the enrollment for the various colleges/universities. The mean value of the Freshman Class Size is around 500 but the variance is quite large and the maximum freshman class is over 6000.
+
+```{r}
+College %>% ggplot(aes(x=Enroll)) +
+  geom_density(fill='blue', alpha=0.5)
+```
+
+b) How does the distribution of applications received depend on whether the university is private or public?
+
+> The major difference is that Private Colleges tend to have smaller class size and variability for Freshman compared to Public Colleges.
+
+```{r}
+College %>% ggplot(aes(x = Enroll, group = Private)) + geom_density(aes(fill = Private), alpha = 0.3)
+```
+ 
+c) There are some colleges and universities that have much larger freshman classes than others. Are there any outliers in our data set? Should we keep them in the data? Explain your reasoning.
+
+>There are some schools with large values on the enrollement, but we shouls not recove them since it is legit data.
+
+
+```{r}
+head(College %>%  arrange(desc(Enroll)))
+```
+
+## Question 2 (finish part b and c by yourself)
+
+Let's leave the outliers in for now, and fit a basic multiple regression model.
+
+a) Fit a multiple regression model with all explanatory variables included. Which ones are statistically significant?
+> The number of applications, the number of people being accepted, percentage of students from top 10% and 25% of their high school, percentage of full-time students, Room and Board Costs, and alumni that donate. 
+
+```{r}
+model = lm(Enroll~. -School, data = College)
+summary(model)
+```
+
+
+b) Interpret the statistically significant coefficients. That is, how is each variable related to the number of applications as college or university receives? 
+
+ > There are 5 variables that are statistically significant to the number of applications that a college/univeristy.
+
+
+c) Evaluate the model assumptions. How well does the model predict the number of applications received?
+
+> It does a pretty good job of correctly predicting the number of applications correctly (91%)
+
+```{r}
+model = lm(Apps~Accept+Top10perc+Top25perc+F.Undergrad+Books, data = College)
+summary(model)
+model
+```
+
+
+## Question 3
+
+a) Use backward selection to choose the "best" multiple linear regression model. Include the output in your submission, and describe each step in selecting the model.
+> By using alpha = 0.05, the only non-significant term is the percentage of part-time students.
+
+```{r}
+model_backward = step(model, direction = "backward")
+summary(model_backward)
+```
+
+
+b) Fit the recommended model. Are all terms statistically significant?
+
+> All the terms except for P.UnderGrad are statistically significant.
+
+```{r}
+summary(model_backward)
+```
+
+
+c) Evaluate the assumptions and fit for this model.
+
+>Based on the QQ Plot, the normality assumption is not satisfied since the dots are biased from the dash line. Based ont he residual plot, even through there is no validation on the independence assumption, the variance of the residual tend to get larger with the enrollment size, thus the constant variance assumption is violated.
+
+> 95.42% of the variance in the enrollment  can be explained by the model.
+
+```{r}
+par(mfrow = c(2,2))
+plot(model_backward)
+
+summary(model_backward)$r.squared
+```
+
+
+## Question 4
+
+There are two types of colleges and universities represented in this data: public and private. The multiple regression model tells us that the type of college and university has a significant relationship to the number of applications.
+
+a) Let's expand our class of possible models to include all potential interactions between the numerical explanatory variables and type of institution. How many possible coefficients are there for the model?
+
+```{r}
+dim(College)
+```
+> 1 intercept, 16 numerical variables, 1 categorical variable with 2 levels, 16 interactions. IN total, there are 34 coefficients.
+
+b) Which variable(s) in the model might have an interaction with type of institution? Choose two explanatory variables, and make a plot for each that includes the number of applications, the explanatory variable, and the type of institution.
+
+```{r}
+College %>% ggplot(aes(x = Outstate, y = Enroll))+ geom_point(aes(col = Private))
+```
+
+c) Fit the model with all interactions with `Private`. Which terms are statistically significant?
+
+> The number of applications, the number of people being accepted, percentage of students from top 10% and 25% of their high school, percentage of full-time students, Room and Board Costs, and alumni that donate. Interaction between private and number of application, private and number of being accepted, private and top 10, private and room/board cost, private and percentage of alumni who donate.
+
+```{r}
+model_intercept = lm(Enroll ~(. -School)*Private, data = College)
+summary(model_intercept)
+```
+
+
+
+d) How much did the model improve in terms of $R^2$ after adding the interaction terms? Do you think this worth the added complexity? Explain why or why not.
+
+> The model did not improve significantly despite adding more interaction. Interaction is also very difficult to explain. 
+
+```{r}
+summary(model_backward)$r.squared
+summary(model_intercept)$r.squared
+```
+
+## Question 5
+
+Let's start with a basic multiple regression problem. We'll use two explanatory variables (one categorical, one numerical) as inputs for our numerical response variable.
+
+Our "population model" is:
+
+$$Y = 1 + 2X_1 + 1X_2 + 2(X_1X_2)$$
+
+We'll assume:
+
+$$X_1 \sim Uniform(0, 1)$$
+
+$$X_{2}=\begin{cases}
+1 & P(X_2=1)=0.6\\
+0 & P(X_2=0)=0.4
+\end{cases}$$
+
+$$\epsilon_i \sim Normal(0, 1)$$
+
+The code chunk below will generate 100 observations from this model.
+
+```{r}
+set.seed(362)
+n <- 100
+
+X1 <- runif(n=n, min=0, max=1)
+X2 <- rbinom(n=n, size=1, prob=0.6)
+
+Y <- 1 + 2*X1+1*X2 + 2*X1*X2 + rnorm(n=n, mean=0, sd=1)
+
+data <- tibble(X1=X1, X2=X2, Y=Y)
+
+data %>% ggplot(aes(x=X1, y=Y)) + 
+  geom_point(aes(col=as.factor(X2)))
+```
+
+### Question 5.1
+
+The code chunk below fits a multiple regression model according to the "correct" data specification. 
+
+```{r}
+model <- lm(Y ~ X1+X2+X1*X2, data=data)
+summary(model)
+```
+
+a) Write the fitted linear model.
+
+> \hat Y = 1.1020 + 1.5974 * X1 + 1.1106 * X2 + 2.0837 * X1 * X2
+
+b) Compare the actual model parameters to the "correct" parameters. How close are the estimates?
+
+> Even though our estimated coefficient is not the exact same as the true parameter, it is similar. 
+
+c) Use the `plot()` function to produce residual plots. Examine the first two residual plots. Based on these plots, are the LINE assumptions met?
+
+>Even though there may be a couple of outliers, most of the points satisfy the function, which means the model is a good fit.
+
+```{r}
+par(mfrow = c(1,2))
+plot(model, which = c(1,2))
+```
+
+
+d) Calculate the __mean squared error__ (sample code below). Based on the mean squared error formula, what values suggest a "good" model?
+
+> The mean square model is relativeley comparing metrics, so the value itself does now represent how good the model is. 
+
+$$MSE = \frac{1}{n}\sum_{i=1}^n (Y_i - \hat{Y}_i)^2$$
+
+```{r}
+sum((data$Y - model$fitted.values)^2)/n
+```
+
+### Question 5.2 (finish by yourself)
+
+Now, misspecify your model. Choose one of the following models:
+
+$$Y \sim X1+X2$$
+$$Y \sim X1$$
+$$Y \sim X2$$
+$$Y \sim X1 + X2 + I(X1^2)$$
+
+
+a) Fit the model with lm() and write the fitted linear model.
+
+> Write your response here.
+
+```{r}
+model2 <- lm(Y ~ X1+X2+I(X1*X1), data=data)
+summary(model2)
+```
+
+
+b) Use the `plot()` function to produce residual plots. Examine the first two residual plots. Based on these plots, are the LINE assumptions met?
+
+> The first model does not meet the criteria for normaily while the second model does manage to do so with the exception of a few outliers. 
+
+```{r}
+par(mfrow = c(1,2))
+plot(model2, which = c(1,2))
+```
+
+
+c) Calculate the __mean squared error__.
+
+
+```{r}
+sum((data$Y - model2$fitted.values)^2)/n
+```
+
+
+d) What is your model "missing"? How is that manifested in the plots and MSE?
+
+> The mean square model is relativeley comparing metrics, so the value itself does now represent how good the model is or how accuarte it is. We can use plots to determine if normality is met or not and also get a rough Idea about accuracy.
+

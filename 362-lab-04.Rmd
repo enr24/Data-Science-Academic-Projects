@@ -1,0 +1,242 @@
+---
+title: "Lab 4"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 362: Statistical Modeling'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes to denote your answer by putting a ">" at the beginning of the line). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your PDF/HTML file and upload to BlueLine.
+
+```{r, warning=FALSE, message=FALSE}
+library(fivethirtyeight)
+library(tidyverse)
+library(caret)
+library(car)
+
+#install.packages('glm2')
+library(glm2)
+data(crabs)
+head(crabs)
+```
+
+Brockmann (1996) carried out a study of nesting female horseshoe crabs. Female horseshoe crabs often have male crabs attached to a female's nest known as satellites. One objective of the study was to determine which characteristics of the female were associated with the number of satellites. Of particular interest is the relationship between the width of the female carapace and satellites. The data can be found in the `crabs` data set from the `glm2` library. It includes:
+
+-   `Satellites` = number of satellites
+-   `Width` = carapace width (cm)
+-   `Dark` = a binary factor indicating whether the female has dark coloring
+-   `GoodSpine` = a binary factor indicating whether the female has good spine condition
+
+## Question 1
+
+Make a plot of the number of satellites attached to each female crab's nest. Using this plot, explain why a traditional Poisson model might not be an ideal choice for this data.
+
+For the following questions, we'll fit three models to predict the number of `Satellites` based on `Width`, `Dark`, and `GoodSpine`. Use these as the explanatory variables in your models unless otherwise directed.
+
+> Because there are a lot of zeros in the data, the distribution may not fit a poisson distribution as well. 
+
+```{r}
+crabs %>% ggplot(aes(x = Satellites)) + geom_histogram()
+```
+
+## Question 2
+
+Fit the traditional Poisson regression model, and save it as `model1`.
+
+```{r}
+model1 = glm(Satellites ~ Width + Dark + GoodSpine, data = crabs, family = "poisson")
+summary(model1)
+```
+
+
+a)  Interpret the model coefficients. Which terms are statistically significant?
+The terms that are statistically significant are Width and Darkyes.The wider the carapce, the more satellites that the crab will have. The light colored ones will also have more sattlelites than the dark colored ones.
+
+b)  Calculate and interpret confidence intervals for the model coefficients.
+> If the width increases for one unit, the number of sattlelites will increase from 11.4% to 20.9%. 
+> Females with a light color will have 6.4% to 60.6% more sattlelites than dark colored females.
+> SInce 1 is included in the cofidence interval, the difference on the satellites between females with good spines and bad spines isn't statistically significant.
+
+```{r}
+exp(confint(model1))
+
+1/0.62258154
+1/0.9397865
+```
+
+c)  Plot the model residuals against the fitted values. Based on this residual plot, are there any potential problems with the Poisson model?
+
+> The residuals are not independently distributed, the the variance in not constant. 
+
+```{r}
+crabs2 = crabs%>% mutate(fit.pois = model1$fitted.values,
+                         res.pois = model1$residuals)
+crabs2 %>% ggplot(aes(x = fit.pois, y = res.pois)) + geom_point()
+```
+
+d)  Evaluate the overall goodness of fit for the model.
+> Since the value is 0, this indicates that this model is a very poor fit.
+
+```{r}
+1 - pchisq(model1$deviance, model1$df.residual)
+```
+
+
+## Question 3
+
+Before we fit a zero-inflated Poisson model, we need to do a bit more exploration.
+
+a)  In order to fit a zero-inflated Poisson model, we need a hypothesized reason for the abundance of zeros. Plot the distribution of satellites split by spine condition and shell color. How does the distribution change for each subgroup?
+
+```{r}
+crabs %>% ggplot(aes(x = Satellites, group = GoodSpine)) + geom_histogram()+ facet_wrap(~GoodSpine)
+
+crabs %>% ggplot(aes(x = Satellites, group = GoodSpine)) + geom_histogram()+ facet_wrap(~Dark)
+```
+
+b)  Fit a zero-inflated Poisson model, `model2`, that uses spine condition and shell color as the zero-inflation coefficients. Interpret the model coefficients. Which terms are statistically significant?
+> Based off this model, the only statistically significant model is the Dark variable. If the female has a dark color, it's more liekly to have zero sattlelites.  
+
+```{r}
+library(pscl)
+model2 = zeroinfl(Satellites~ Width + Dark + GoodSpine | Dark + GoodSpine, data = crabs)
+summary(model2)
+```
+
+c)  Calculate and interpret confidence intervals for the model coefficients.
+
+```{r}
+exp(confint(model2))
+```
+
+d)  Plot the model residuals against the fitted values. Based on this residual plot, are there any potential problems with the zero inflated Poisson model?
+> From the residual plots, it seems that the independece and the inconsistent variance have improved from the previous model, but it still isn't perfect
+
+```{r}
+crabs2 = crabs2 %>% mutate(fit.zero = model2$fitted.values,
+                           res.zero = model2$residuals)
+
+crabs2 %>% ggplot(aes(x = fit.zero, y = res.zero)) + geom_point()
+```
+
+e)  Evaluate the overall goodness of fit for the model.
+
+> SInce all the p-values are small, the zer-inflated model has a better fit than the traiditonal poisson model. 
+
+```{r}
+vuong(model1, model2)
+
+```
+
+
+## Question 4
+
+Fit a negative binomial regression model, and save it as `model3`.
+
+a)  Interpret the model coefficients. Which terms are statistically significant?
+> The only term with statistical significane is is the Width. The more wdith, the more Satellites. 
+
+```{r}
+library(MASS)
+model3 = glm.nb(Satellites ~ Width + Dark + GoodSpine, data = crabs)
+summary(model3)
+```
+
+b)  Calculate and interpret confidence intervals for the model coefficients.
+
+```{r}
+exp(confint(model3))
+```
+> If the width increases for 1 unit, there will be 8.8% to 31.5% increase in the number of Sattlelites. THe other two variables (Dark and GoodSpine) don't carry any statistical significance. 
+
+c)  Plot the model residuals against the fitted values. Based on this residual plot, are there any potential problems with the negative binomial model?
+
+```{r}
+crabs2 = crabs2 %>% mutate(fit.nb = model3$fitted.values,
+                           res.nb = model3$residuals)
+
+crabs2 %>% ggplot(aes(x = fit.nb, y = res.nb)) + geom_point()
+```
+
+d)  Evaluate the overall goodness of fit for the model.
+> Even though the value is small, it shows that the model has a decent fit. 
+ 
+```{r}
+1 - pchisq(model3$deviance, model3$df.residual)
+```
+
+
+## Question 5 (Finish by yourself)
+
+Based on these three models:
+
+a)  Which one do you think is "best"? Explain your reasoning.
+> Between the various models that we have run, I believe that model 2 is the best because we run a calculation of Chi-Square on Model 1 and 3. Model 1 calculated to 0 while Model 3 calculated to 7%, which means that these models were very poor fits.
+
+b)  How do you think the model might be improved? Explain your reasoning.
+
+> The model could improve with more variables in data, specifically, ones that are continuous. I also think that maybe elminating certain variables that are categorical could also help imrpove the model.
+
+## Question 6: Model selection in Poisson regression (Finish by yourself)
+
+The code below generates data according to a poisson regression model. For simplicity, there are four explanatory variables, $X_1$ through $X_4$, each simulated according to a uniform distribution from 0 to 1. 
+
+```{r}
+beta0 <- 0
+beta1 <- 0.1
+beta2 <- 0.5
+beta3 <- 1
+beta4 <- -1
+N <- 100
+
+x1 <- round(runif(min=0, max=1, n=N), 2)
+x2 <- round(runif(min=0, max=1, n=N), 2)
+x3 <- round(runif(min=0, max=1, n=N), 2)
+x4 <- round(runif(min=0, max=1, n=N), 2)
+
+eta <- beta0 + beta1*x1 + beta2*x2 + beta3*x3 + beta4*x4
+lambda <- exp(eta)
+
+y <- rpois(lambda, n=N)
+
+data2 <- tibble(x1, x2, x3, x4, y)
+head(data2)
+```
+
+a) Which variable(s) do you think will be the strongest predictor(s) for $y$? Which variable(s) do you think will be the weakest predictor(s)? Explain your reasoning.
+
+I believe that the strongest predictors for y will be $x_3$ and $x_4$ because between the two variables, they have at some values that are closer to 1 compared to $x_1$ and $x_2$. 
+
+b) Fit a Poisson model and then apply forward selection to this data - which variables are included in the chosen model?
+$x_3$ and $x_4$ were the strongest variables.
+
+```{r}
+model_poisson <- glm(y ~., data=data2, family='poisson')
+summary(model_poisson)
+```
+
+c) Save the forward selection model into a new model object. Calculate the variance inflation factor in the model: what does this tell you?
+
+> Upon calucalting the variance inflation, we find that the values do not exceed 5, which means that generally the model is good at estimating the coefficient in an accurate manner.
+
+```{r}
+vif(model_poisson)
+
+```
+

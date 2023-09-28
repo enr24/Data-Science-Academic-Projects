@@ -1,0 +1,269 @@
+---
+title: "Lab 8"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 362: Statistical Modeling'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes to denote your answer by putting a ">" at the beginning of the line). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your PDF/HTML file and upload to BlueLine.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(MASS)
+library(faraway)
+```
+
+## Question 1 (Finish Part h by yourself)
+
+Five suppliers cut denim material for a jeans manufacturer. An algorithm is used to estimate how much material will be wasted given the dimensions of the material supplied. Typically, a supplier wastes more material than the target based on the algorithm although occasionally they waste less. The percentage of waste over the target (`waste`) was collected weekly for the 5 suppliers (`supplier`). `waste=0` means that the supplier was on target, and `waste>0` indicates that the supplier wasted more material than desired. In all, 95 observations were recorded.
+
+```{r}
+data(denim)
+head(denim)
+```
+
+a) Make a plot of the distribution of percentage of waste compared to supplier. Which suppliers are most consistent?
+> There is not much difference on the percentage of waste across the different suppliers and it seems that the Supplier 1 and 4 tend to have slightly more consistency. 
+
+```{r}
+denim %>% ggplot(aes(x = supplier, y = waste)) + geom_boxplot()
+```
+
+b) Is supplier a fixed or random effect? Explain your reasoning.
+> If we really want to comapre the wate between the suppliers, then it should be considered as a fixed effect. However, if the suppliers are only a random subset from larger population, it shoudl be considered as a random effect. 
+
+c) Fit a fixed effects model with `supplier`, using an appropriate response distribution. Is the `supplier` significant?
+> The supplier isn't significant becase the p-value is largers than 0.05. 
+
+```{r}
+model_lm = lm(waste~supplier, data = denim)
+summary(model_lm)
+aov(model_lm)
+summary(aov(model_lm))
+```
+
+d) Make an appropriate residual plot(s) of the linear model. Based on your plots, is the model a reasonable "fit"? Explain why or why not.
+
+> There are potential outliers in the data which may largely affect the model fitting. From the residual plot, we can also see the inconsistent variance across different groups. 
+
+```{r}
+plot(model_lm, which = c(1,2))
+```
+
+e) Which of the "standard modeling assumptions" is violated? Is that evident from the residual plots?
+> For this to be evaluate, we need to have a consistent variance, which is not the case here as per the residual. 
+
+f) Now, fit a model with `supplier` as a random effect. What are the estimated standard deviations of the effects?
+> The estimated standard deviation of the effects is 6.997. 
+
+```{r}
+library(lme4)
+model1 = lmer(waste~1+(1|supplier), data = denim)
+summary(model1)
+```
+
+g) Find the predicted mean waste for each supplier. How do the predictions using the random model compare to the predictions using the fixed model?
+
+> By considering the suppliers as a random effect, then the difference in the sample is down weight in the model. 
+
+```{r}
+newdata = data.frame(supplier = as.factor(1:5))
+
+predict(model_lm, newdata = newdata)
+predict(model1, newdata = newdata)
+```
+
+h) There are two outliers in this data set. Find them, and repeat this exercise. Which supplier do you recommend, and why?
+> Based on the results, I would recomment supplier 2 as they have more consistent results. 
+
+```{r}
+denim %>% ggplot(aes(x = waste, y = supplier)) + geom_point()
+denim_revised <- denim[!(denim$waste > 25| denim$waste < 0),]
+denim_revised %>% ggplot(aes(x=waste, y = supplier)) + geom_point()
+```
+```{r}
+model_lm_rv = lm(waste~supplier, data = denim_revised)
+summary(model_lm_rv)
+aov(model_lm_rv)
+summary(aov(model_lm_rv))
+```
+```{r}
+plot(model_lm_rv, which = c(1,2))
+```
+```{r}
+model1.5 = lmer(waste~1+(1|supplier), data = denim_revised)
+summary(model1.5)
+```
+```{r}
+newdata2 = data.frame(supplier = as.factor(1:5))
+
+predict(model_lm_rv, newdata = newdata2)
+predict(model1.5, newdata = newdata2)
+```
+
+## Question 2 
+
+An experiment was conducted to determine the effect of recipe and baking temperature on chocolate cake quality. 15 batches of cake mix for each recipe were prepared. Each batch was sufficient for six cakes. Each of the six cakes was baked at a different temperature which was randomly assigned. Several measures of cake quality were recorded of which breaking angle was just one. Breaking angle was used as a measure of the texture of the cake.
+
+```{r}
+data(choccake)
+head(choccake)
+```
+
+a) Plot the data, and comment on how recipe, batch, and temperature are related to breaking angle. 
+> based on the side-by-side Boxplot, the recipe may not afect the Breaking Angle, but the different batch may lead to adiffernet breaking angle. There may also exists a mild positive relationship between temperature and breaking angle. 
+
+```{r}
+choccake %>% ggplot(aes(x = recipe, y = breakang)) + geom_boxplot()
+choccake %>% ggplot(aes(x = batch, y = breakang)) + geom_boxplot()
+choccake %>% ggplot(aes(x = as.factor(temp), y = breakang)) + geom_boxplot()
+choccake %>% ggplot(aes(x = temp, y = breakang)) + geom_jitter()
+```
+
+b) Fit a linear model with an interaction between temperature and recipe as fixed effects and no random effects. Which terms are significant? Why is this analysis unreliable?
+> The only significant variable is the temperature. This is unreliable because there is no normal distribution, which violates the assumption. 
+
+```{r}
+model2 = lm(breakang~temp+recipe+temp:recipe, data = choccake)
+summary(model2)
+plot(model2, which = c(1,2))
+```
+
+c) Fit a mixed effects model that takes account of the batch structure. (Hint: Are all batches available for each recipe?) What effect does temperature have on breaking angle?
+> The temperature tends to have a significant positive effect on the braking angle
+
+```{r}
+model2 = lmer(breakang~temp +recipe+temp:recipe+(1|batch), data = choccake)
+summary(model2)
+
+model3 = lmer(breakang~temp +recipe+temp:recipe+(1|batch), data = choccake, REML= FALSE)
+model4 = lmer(breakang~temp +recipe +(1|batch), data = choccake, REML = FALSE)
+
+LRT = as.numeric(2 *(logLik(model3) -logLik(model4)))
+LRT
+1-pchisq(LRT, df = 2)
+```
+
+d) What effect does recipe have on breaking angle?
+> The recipe may have a weak effect on the braking angle. 
+
+```{r}
+model5 = lmer(breakang~temp +recipe+temp:recipe+(1|batch), data = choccake, REML= FALSE)
+model6 = lmer(breakang~temp+(1|batch), data = choccake, REML = FALSE)
+
+LRT = as.numeric(2 *(logLik(model5) -logLik(model6)))
+LRT
+1-pchisq(LRT, df = 2)
+```
+
+
+e) Make and comment on the residual plots. What do they tell you about the fit of your mixed model?
+> The residual plot tneds to have inconsistent variance, but the normality assumption the qq plot imrpoves. 
+
+```{r}
+library(lattice)
+qqmath(model2, id = 0.5)
+```
+
+
+## Question 3
+
+Arguably, the hardest part of _mixed modeling_ is figuring out the notation. One useful tool is to think of the experiment (or data generating process) in terms of the __topographical__ parts and the __treatment__ parts.
+
+
+### Treatment v. topographical 
+
+"Topographical" refers to the _non-treatment_ aspects of the design.
+
+__Example__: Consider a study where three batches will be selected for use in an experiment. For each batch, measurements $Y$ are taken after applying some explanatory variable, $X$,  which we'll consider categorical with nine levels: 0, 3, 6, 9, 12, 18, 24, 36, and 48.
+
+To sketch the ANOVA table for a model, we need to know how many _degrees of freedom_ to allocate to each variable. Think of the degrees of freedom as the number of parameters needed to fit the model using that particular variable.
+
+1. Numerical variables get allocated: 1
+
+
+2. Categorical variables get allocated: levels - 1 : 9-1 = 8
+
+
+The total degrees of freedom available are: n - 8 = 1
+
+
+__Example__: For the batch experiment...
+
+Topographical features: batch
+
+
+
+Treatment features: explanatory variable $x$
+
+
+
+Combined ANOVA table:
+
+
+
+How does the ANOVA table change if $X$ is numerical?
+
+
+---
+
+Sketching the ANOVA table before fitting a mixed model helps us:
+
+1. Determine whether the model can actually be fit given the data available (Sometimes we don't have enough data to estimate model effects for all explanatory variables!).
+2. Check that the model being fit by R is the model we actually wanted.
+
+__Instructions__: Consider the following six scenarios. Each one describes a study - how it was conducted, the response variable of interest, and the objective of the study. For each scenario:
+
+1. Sketch the "plot plan". 
+2. Identify the response variable, and a reasonable distribution for modeling the response variable.
+3. Identify the fixed effect(s).
+4. Identify the random effect(s).
+5. Identify any nested effect(s): effects that only occur with certain combinations of other effects (i.e. teachers are unique within schools).
+6. Write the full model specification (linear predictor, link, response distribution).
+7. Sketch the _ANOVA table_. 
+8. Write the _functional form_ of the model in R
+
+### Scenario A
+
+Seven locations are sampled. Each location is divided into four parts. Each part is randomly assigned a "level of exposure" to an environmental hazard (the levels are 0, 0.5X, X, and 2X), where X is the "nominal maximum safe level of exposure"). The response variable is the number of living organisms of a species affected by the hazard. The theory to be tested is that the number of organisms decreases linearly as the level of exposure increases.
+> Fixed effect:Level of exposure to an enviromental hazard.
+> Random effect:locations
+> Nested effect:part
+
+### Scenario B
+
+The country of Statsylvania has three distinct soil types. One location of each soil type is selected. Each location is split into 10 parts, called "plots". Five are randomly assigned to treatment 1, the other five to treatment 2. Corn is grown on each plot: the response of interest is the corn yield suitable for ethanol production: a total yield measurement is obtained for each plot. The objective is to estimate the affect of soil type and treatment on yield.
+> Soil Type:Fixed effect
+> Location:Random effect
+> Plots: Nested effect
+> Treatment:Fixed effect
+
+### Scenario C
+
+A court wants to determine if there is evidence of racial discrimination in the state's sentencing practices for murder convictions. Records for a period the court deems relevant are assembled and reviewed for race of the victim (white v. non-white), race of the convict (white v. non-white), and sentence type (death penalty v. no death penalty).
+> Race: Fixed effect
+> Period: random effect
+
+### Scenario D
+
+Eighteen counties are randomly selected from a population of "typical" counties in america. Two types of vaccines will be compared for their effectiveness against the flu. Nine counties are assigned to vaccine type A, and nine are assigned to vaccine type B. In each county, the patients are randomly assigned to three groups. The first group receives the assigned vaccine at a low dose, the second group receives the vaccine at a medium dose, and the third group receives the assigned vaccine at a high dose. Let $N_{ijk}$ represent the number of patients in county $k$ receiving the $j^{th}$ dose level (low, medium, or high) of the $i^{th}$ vaccine type (A or B). Let $Y_{ijk}$ be the number of patients in the ${ijk}^{th}$ group who contract the flu. The goal of the study is to assess the effect of vaccine type and dose level on the effectiveness of protection.
+> Countries: random
+> Type of vaccine: fixed
+> Dose: fixed
