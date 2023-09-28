@@ -1,0 +1,120 @@
+---
+title: 'Lab 3: Managing a Social Media Brand'
+author: "Emmanuel Rayappa"
+date: "Due September 14, 2021"
+output:
+  pdf_document: default
+  bookdown::html_document2: default
+subtitle: 'MTH 365: Intro to Data Science'
+---
+
+In this lab you'll use data visualization tools to explore the performance metrics of posts published on a company's Facebook page. Twelve posts' performance metrics extracted from a cosmetic company's page. The data is available as `dataset_Facebook.csv`.
+
+- Source: S. Moro, P. Rita and B. Vala. "Predicting social media performance metrics and evaluation of the impact on brand building: A data mining approach". _Journal of Business Research_: 69 (9). 
+
+First, load the dataset into RStudio. The variable names in this dataset are complicated! To simplify things, we'll rename the variables.
+
+```{r}
+dataset_Facebook <- read.csv("dataset_Facebook.csv", sep = ";")
+colnames(dataset_Facebook) <- c('PageLikes', 'Type', 'Category', 'Month', 'Weekday', 'Hour', 'Paid', 'TotalReach', 'TotalImpressions', 'EngagedUsers', 'PostConsumers', 'PostConsumptions', 'ImpressionsByLikes', 'ReachByLikes', 'LikesEngaged', 'Comment', 'Like', 'Share', 'TotalInteractions')
+names(dataset_Facebook)
+
+library(tidyverse)
+```
+
+Some of these performance metrics are not intuitive. Facebook performance metrics generally fall into two categories: _visualizations_ (posts loaded in users' browsers) and _interactions_ (clicks on posts). You can find detailed descriptions for the variables in the pictures on BlueLine. 
+
+Use this data to answer the following research questions. For each question, you should produce _at least one data visualization_, with appropriate axis, legend labels and a descriptive caption to address the question. Some data visualization (will be labelled) will require you to write a paragraph for detailed description.  
+
+-------
+
+> 1. What type of post engages this company's Facebook followers the most? Use Red, Yellow, Blue, and Green to indicate Link, Photo, Status and Video respectively. 
+
+Based off the density plot, we can conclude that users on the Facebook App engage with Links the most,followed by Photos,Status, and Video's. For all 4 types, the data in skewed to the right. 
+
+```{r, fig.cap = "Density Plot which analyzez the numbers of users for various types of posts (Photo, Status, Video, or Link)"}
+ggplot(dataset_Facebook, aes(x = EngagedUsers)) + geom_density(aes(fill = Type)) + 
+  facet_wrap(~Type, nrow = 2) +
+  scale_color_manual(breaks = c("Link", "Photo", "Status", "Video"),
+  values = c("red", "yellow", "blue", "green")) +
+  ylab("Frequency")
+
+```
+
+> 2. Is there an ideal time for this company to post a photo to Facebook? (e.g. is there an hour that the engaged users are extremly high)
+
+There is not an ideal time as indicated by the data as the number of users is fairy consistent each hour. There are also a few out-liers with-in this scatter plot. Generally, there is inconclusive evidence to suggest a "preferred hour" for FaceBook Users.
+
+```{r, fig.cap= "Dotplot that highlights the relationship between  the numbers of users and the hour of the day"}
+ggplot(dataset_Facebook, aes(x = Hour, y = EngagedUsers)) + geom_point(aes(group = Hour))+
+xlab("Hour of day") + 
+ylab("Number of users")
+  
+
+```
+
+> 3. Define the view for a post to be the ratio between the TotalImpressions and the TotalReach. The number view then indicates the average number of times that a user see the post. Describe the distribution of views. See [here](https://bolt.mph.ufl.edu/6050-6052/unit-1/one-quantitative-variable-introduction/describing-distributions/) for how to describe the shape of a distribution. 
+
+The view for a post to be the ratio between the TotalImpressions and TotalReach, the value for TotalImpressions must be between 0-5 as the ratio decreases after the value of TotalReach becomes greater than 5.
+
+```{r, fig.cap = "Density plot showing the relationship between TotalImpression and TotalReach"}
+dataset_Facebook <- dataset_Facebook %>%
+  mutate(view = TotalImpressions / TotalReach) #making a new variable
+ggplot(dataset_Facebook, aes(x = view))+
+  geom_density() +
+  xlab("Total Impressions") + 
+  ylab("Total Reach")
+
+```
+
+> 4. Do posts that reach a wider audience (more users) tend to have more Comments? You can ignore the total reach over 175000. Write a paragraph to describe more on each type of posts.
+
+An immediate generalization is that the more people that . view a post, the more comments they get. However, the data indicates the exact opposite. Posts with less comments actually tend to have more user engagement. 
+
+```{r, fig.cap = "Scatter plot demonstrating the relationship "}
+filter_likes <- dataset_Facebook %>% filter(TotalReach < 17500)
+ggplot(filter_likes, aes(x = Comment, y = EngagedUsers)) +
+geom_point(aes(group = Comment))+
+xlab("Number of comments") + 
+ylab("Nunber of likes")
+
+```
+
+> 5. Do posts that reach a wider audience (more users) tend to have more Likes? Write a paragraph to describe more on each type of posts and compare to the results in previous questions. Don't worry about the missing value warning. 
+
+The plot appears to have a very tight shape but tends to loosen out as the reach increases. This tells us that there are more out-liers in the data as the Total reach increases. As the reach increases, the number of likes tend to vary meaning that with more outreach, there is no set pattern for the likes as they can either be high or low. With lower reach however(0 to about 50,000), we can definitively determine that the number of likes also increases.
+
+```{r, fig.cap = "Scatter-plot comparing reach to the 4 different types of posts"}
+ggplot(filter_likes, aes(x = TotalReach, y = LikesEngaged))+ 
+geom_point()+
+xlab("TotalReach") + 
+ylab("LikesEngaged")
+
+
+```
+
+> 6. Which type of posts reach a wider audience? Describe the distribution of total reach number for different type of posts. Compare your result to question 1 and write a paragraph. 
+
+The post type that has a wide audience reach is Photos. Status has the second highest reach followed by Links and Videos. When comparing this to user engagement, the results are very much different because I expected the trend from engagement to hold up with user-reach. Facebook Links had the highest reach, but the second lowest engagement. Status had the second highest reach but had the lowest reach. Generally, if the type of post has high reach, it tends to have low engagement.
+
+```{r}
+ggplot(dataset_Facebook, aes(x = TotalReach)) + geom_density(aes(fill = Type)) + 
+  facet_wrap(~Type, nrow = 2) +
+  scale_color_manual(breaks = c("Link", "Photo", "Status", "Video"),
+  values = c("red", "yellow", "blue", "green")) +
+  ylab("Frequency")
+
+```
+
+-------
+
+Question 1-3 worth 10 points. Question 4-6 worths 15 points
+
+Your submissions will be assessed on:
+
+1. Quality of the data visualizations (6 pts. per question).
+2. Quality of your label and captions (2 pts. per question).
+3. Code formatting: consistency, readability, etc. (2 pts. per question).
+4. Quality of your paragraph writing (5 pts. per question 4-6)
+
+Total points possible: 75

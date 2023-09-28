@@ -1,0 +1,82 @@
+---
+title: "Mini-Project 3"
+name: "Emmanuel Rayappa"
+date: "11-5-2021"
+---
+## Intro
+
+Credit is one of the more important parts of one's financial records. It is defined as the ability to be able spend a given amount and repay it in a timely manner. What makes it all the more important is influential in your ability to be able to purchase a house or a car.
+---
+## Data
+
+Here, we will be using the Data set Credit, which has various information about people with credit cards (income, age, ethnicity). To work with this data, we will split this data into two different sets. They will both have an equal number of observations to see which variables we can use to figure out what influences the rating. 
+
+```{r}
+#install.packages('ISLR')
+library(ISLR)
+library(tidyverse)
+library(mdsr)
+library(mosaic)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+
+data(Credit)
+glimpse(Credit)
+```
+
+
+```{r}
+set.seed(365)
+test_id <- sample(1:nrow(Credit), size=round(0.5*nrow(Credit)))
+TEST <- Credit[test_id,]
+TRAIN <- Credit[-test_id,]
+TRAIN %>% group_by(Age) %>% summarise(N = n())
+TEST %>% group_by(Age) %>% summarise(N = n())
+
+```
+## Models and results
+What we are interested in is learning about which variables are the most important for determining the balance. We will use the TRAIN data and a linear model to determine this. From the previous model, we can see the most important variables, which have multiple stars are Income, credit limit, Cards, and Student status.
+```{r}
+model1 <- lm(Balance~., data = TRAIN)
+summary(model1)
+
+```
+We can run a linear model for the Train set as well and see if the same variables are important. 
+```{r}
+model2 <- lm(Balance~., data = TEST)
+summary(model2)
+```
+While we can see that the variables with stars next to them are important, we do not actually know how important they are. Do be able to do this, we can use the random forest, which will run a test on the variables in the data set. We will use the varImPlot function to report on which variables were most significant.
+
+From the varImPlot, we find that the most important variables are Rating,Limit, and Income.
+```{r}
+library(randomForest)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+forest1 <- randomForest(Balance~.-Balance,data=TRAIN,ntree=201, mtry=3)
+forest1
+
+varImpPlot(forest1)
+```
+We can follow the same procedure with the TEST data and see if the important variables are the same. We find out that they are indeed the same.
+```{r}
+forest2 <- randomForest(Balance~.,data=TRAIN,ntree=201, mtry=3)
+forest2
+
+varImpPlot(forest2)
+
+```
+So now lets try to see a visualization of the relationship between them. Do do this, we can use a tree model.
+```{r}
+tree1 <-rpart(Rating ~ Income, data = TRAIN)
+fancyRpartPlot(tree1)
+```
+Here, we are confirming whether or not rating and income have any influence on each other (based of the varImplot test done earlier). The plot here clearly shows that credit rating is higher if income is also higher.
+```{r}
+TRAIN %>% ggplot(aes(x = Rating, y = Income)) +
+  geom_point() +
+  geom_smooth(method = "tree") +
+  aes(color = Rating)
+```
