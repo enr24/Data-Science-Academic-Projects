@@ -1,0 +1,253 @@
+---
+title: "Lab 8"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 366: Machine Learning'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes by starting your line with ">" to denote your response). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your PDF/HTML file and upload to BlueLine.
+
+## Question 1 (complete part e by yourself)
+
+In this exercise, you'll explore the effect centering and scaling have on principal components analysis. The following data set contains simulated data for 1,000 observations on 10 variables. Some variables in the data set are strongly correlated, and some are weakly correlated. 
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+set.seed(366)
+N <- 1000
+x1 <- rnorm(n=N, mean=5, sd=1)
+x2 <- x1^2 + rnorm(n=N, mean=0, sd=0.2)
+x3 <- log(x1)
+x4 <- x3 + x2 - x1
+x5 <- runif(n=N, min=0, max=10)
+x6 <- sin(x5)
+x7 <- x5/2 + rnorm(n=N, mean=0, sd=1)
+x8 <- rbeta(n=N, shape1=2, shape2=3)*2
+x9 <- rpois(n=N, lambda=x8)
+x10 <- rexp(n=N, rate=x9+1)
+
+data <- tibble(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10)
+head(data)
+plot(data)
+```
+
+a) Calculate summary statistics (mean, sd) for all variables in the data set. Comment on the scale of the variables.
+
+```{r}
+apply(data, 2,mean)
+#colMeans(data)
+
+sqrt(apply(data,2,var))
+```
+> COmapred to other variables, x2 and x4 tend to have a much larger sclae which leads to a larger mean and standard devition than the others
+
+b) Fit a principal components model to this data set _without centering and scaling_. How much of the variation in the data is explained using the first two principal components?
+
+> 99.7% of the variance can be explained by the first two Principal Components. 
+
+```{r}
+data_pca = prcomp(data,center=FALSE, scale=FALSE)
+summary(data_pca)
+```
+
+c) Find the loading vectors for the _unadjusted_ principal components. Which variables are "most important" in the first two principal components?
+> X2 and X4 are the most important variables in the First Principle Component. X5 and X7 are the most important variable in the Second Principle Component.
+
+```{r}
+data_pca$rotation[,1:2]
+```
+
+d) Use a "direction plot" to visualize the first two principal components.
+
+```{r}
+library(factoextra)
+fviz_pca_var(data_pca, col.var = "contrib")
+```
+
+e) Now, repeat parts 2-4 with a centered and scaled model What changes, and what stays the same?
+
+> X2 and X4 are still the most important variables. The Direction Plot however doesn't distinctly show the direction of X2 and X4. The variance explained in the PCA drop from 99.8% to 57.5%.
+
+```{r}
+data_pca = prcomp(data,center=TRUE, scale=TRUE)
+summary(data_pca)
+data_pca$rotation[,1:2]
+
+fviz_pca_var(data_pca, col.var = "contrib")
+
+```
+
+
+## Question 2
+
+The data set BostonHousing from the mlbench library contains data on housing values for 506 census tracts around Boston. We’ll use principal components analysis to help explain the variation in housing data.
+
+```{r}
+library(mlbench)
+data(BostonHousing)
+glimpse(BostonHousing)
+```
+
+a) Are all variables in this data set numerical?
+> No as there is a variable that is designated as a factor.
+
+```{r}
+BostonHousing2 = BostonHousing %>% select(-chas)
+```
+
+
+b) How many principal components are needed to explain the variation in housing data in Boston? Use a scree plot to support your answer.
+> We will need 3 to 4 principal componenets to explain the variation in housing data.
+
+```{r}
+Boston_pca = prcomp(BostonHousing2, center = TRUE, scale = TRUE)
+summary(Boston_pca)
+
+fviz_eig(Boston_pca, addlabels = TRUE)
+```
+
+c) Use a “direction plot” to visualize the first two principal components. What elements are most often included in those components?
+> medv(median house value), rm(average nuber of rooms), dis(weighted distance to employment centers), lstat(percentage of low status population), nox(concentration)
+
+```{r}
+fviz_pca_var(Boston_pca, col.var = "contrib")
+```
+
+d) Use a “direction plot” to visualize the third and fourth principal components. What elements are most often included in those components?
+
+>ptratio(pupil teacher ration), b(proportion of blacks by town), zn(proportion of residential land), 
+
+```{r}
+fviz_pca_var(Boston_pca, col.var = "contrib", axes = c(3,4))
+```
+
+e) Do you have any reservations about this analysis? Explain why or why not.
+
+> Its hard to explain and interpret the results and explain them to presenters. Another issue is that we only know about the relation between
+
+## Question 3
+
+Principal components is wonderfully useful, until you need to interpret a data set... We are going to look at a couple of real data on Tidy Tuesday. 
+
+Tidy Tuesday is a weekly data project aimed at the R ecosystem. As this project was borne out of the R4DS Online Learning Community and the R for Data Science textbook, an emphasis was placed on understanding how to summarize and arrange data to make meaningful charts with ggplot2, tidyr, dplyr, and other tools in the tidyverse ecosystem. However, any code-based methodology is welcome - just please remember to share the code used to generate the results.
+
+https://github.com/rfordatascience/tidytuesday
+
+Each week, R users share their work on Twitter using the #TidyTuesday hashtag. Tidy Tuesday has been running since 2018, which means that there are tons of freely available and interesting data sets to play around with!
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(factoextra)
+
+#install.packages("tidytuesdayR")
+library(tidytuesdayR)
+```
+
+For each of the data, we are going to: 
+
+1. Review the online documentation. What are the __interesting questions__ you can answer with this data?
+2. What questions about this data can you answer __using principal components analysis__?
+3. Explore the data. Make 2-3 plots of the data to tell us a little more about your example.
+4. Calculate the principal components. Make sure to remove any categorical variables and missing values from your data.
+5. How many principal components would you "keep" for this data? Explain your reasoning.
+6. Visualize the first two principal components. Are they "interpretable"? If so, what do these components represent? If not, explain why.
+
+### Example 1: Plastic pollution
+
+Read more about this data:
+
+> https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-01-26/readme.md
+
+```{r, warning=FALSE, message=FALSE}
+plastics <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-01-26/plastics.csv')
+
+head(plastics)
+```
+```{r}
+plastics2 = plastics[,4:11]
+plastics2 = plastics2[complete.cases(plastics2),]
+
+library(corrplot)
+corrplot(cor((plastics2)))
+
+plastics_pca = prcomp(plastics2, center = TRUE, scale = TRUE)
+summary(plastics_pca)
+
+
+fviz_eig(plastics_pca, addlabels=TRUE)
+
+fviz_pca_var(plastics_pca, col.var = "contrib")
+fviz_pca_var(plastics_pca, col.var = "contrib", axes = c(3,4))
+```
+> With this data, we can study the relation between the various types of plastics polution. Based on the results, it seems that there are a couple of plastics that are highly correlated with each other: pet, hdpe, ldpe, and o. These plsatics make up te majority pollution in the dataset.
+
+### Example 2: Makeup shades
+
+Read more about this data:
+
+> https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-03-30/readme.md
+
+```{r, warning=FALSE, message=FALSE}
+allShades <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-30/allShades.csv')
+
+head(allShades)
+```
+```{r}
+allShades2 = allShades %>% dplyr::select(specific, hue, sat, lightness)
+head(allShades2)
+allShades2 = allShades2[complete.cases(allShades2),]
+
+allShades2$specific = as.numeric(gsub("[^\\d]+", "", allShades2$specific, perl = TRUE))
+head(allShades2)
+
+corrplot(cor(allShades2))
+shades_pca = prcomp(allShades2, center = TRUE, scale = TRUE)
+summary(shades_pca)
+
+fviz_eig(shades_pca, addlabels = TRUE)
+fviz_pca_var(shades_pca, col.var =  "contrib")
+fviz_pca_var(shades_pca, col.var = "contrib", axes = c(3,4))
+```
+> With this data, there isn't a whole lot to study
+
+### Example 3: Deforestation in Brazil
+
+Read more about this data:
+
+> https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-04-06/readme.md
+
+```{r, warning=FALSE, message=FALSE}
+brazil_loss <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-04-06/brazil_loss.csv')
+
+head(brazil_loss)
+```
+```{r}
+brazil2 = brazil_loss[,4:14]
+brazil2 = brazil2[complete.cases(brazil2),]
+corrplot(cor(brazil2))
+brazil_pca = prcomp(brazil2, center = TRUE, scale = TRUE)
+summary(brazil_pca)
+
+fviz_eig(brazil_pca, addlabels = TRUE)
+fviz_pca_var(brazil_pca, col.var =  "contrib")
+fviz_pca_var(brazil_pca, col.var = "contrib", axes = c(3,4))
+```
+
+> With this data, we can see which type of deforestation have occured within Brazilian Rainforests.
