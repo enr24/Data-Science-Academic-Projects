@@ -1,0 +1,77 @@
+---
+title: "Project 1: students performance in Math Class"
+subtitle: "MTH 362: Statistical Modeling"
+author: "Emmanuel Rayappa"
+date: "Due Feb 18, 2022"
+output: pdf_document
+---
+
+#Introduction 
+For this project, we will be exploring data on students performance in math Class and what factors in the data can affect their performance. To do this, we will be referencing a data set with various information on students who are in school. This data set, which will be referred to as "school_data" is a data set with a sample size of 395 students and has various information on their schooling such as their relationship with their family, which is measured on a scale of 1-5 with 1 being poor and 5 being very good. There are 3 different grade variables and they are refereed to as: G1, G2, and G3 in the data set.All 3 variables are on a scale of 0-20 with 0 being bad and 20 being very good. G1 is a reference to their first period grade while G2 refers to their second period grade and G3 refers to their final grade. 
+
+This data set is particularly important because it can be used to see why people may not be finishing school and gauge where there are problems in the education system that should be fixed.It can even introduce the fact that there may be other factors that we didn't realizes had a role, such as family relationship.
+
+
+
+```{r, echo = FALSE,warning=FALSE}
+library(tidyverse)
+library(caret)
+library(ggplot2)
+school_data = read.csv("student-mat.csv", sep = ";")
+school_data %>% ggplot(aes(x = G3)) + geom_density(aes(G3,fill = "Red"))
+```
+# Establishing a response variable
+Usually, it's clear what our response variable is, which for this data would be the grade. However, there are 3 different options in our case: G1,G2,G3. Between these 3, we should pick G3 as we indicated earlier that this is representative of the final grade that the student received, which is the one that determines whether or not the student ultimately passes. 
+
+Now that we have established a response variable, we can run a linear model and see which variables have a influence on G3 (We do not include G1 and G2 in this test since we deemed both variables not as important.)
+
+```{r,echo=FALSE, warning=FALSE}
+model_lm = lm(G3~.-G2-G1, data=school_data)
+summary(model_lm)
+```
+Now from running this model, we see a few variables that are important. These variables are failures, which highlights the number of failures a student has, romanticyes (Whether or not they are in a relationship), and goout(Whether or not they go out with friends). We can run a few EDA and see what kind of relationships these variables have with one another. 
+
+From the EDAs that we have run, we can see that there is a distance relationship between a higher grade and whether or not the person is in a relationship. The people with higher grades tend to have a lower number of people in a romantic relationship. For the goout variable, we see that the more frequently people go out, the lower their G3 is, which suggests a clear relationship between the two variables, meaning that the more people go out, the lower their grade is.For the Failures variable, we see that the more failures some one has, The lower their grade is. 
+
+```{r, echo=FALSE, warning=FALSE}
+school_data %>% ggplot(aes(x = G3))+geom_histogram(aes(col = romantic))
+
+school_data %>% ggplot(aes(y = goout, x = G3))+geom_point(aes(col = G3))
+
+school_data %>% ggplot(aes(y = G3, x = failures))+geom_point()
+```
+# Running Models on the Data
+From this plot, we can see that it isn't a good fit  as there are many points that lay outside of the line of fit. So while there is some correlation between the two variables, there isn't necessarily a good fit. So we should run another linear model to see how good of a fit it is and also learn what variables are important between the ones we found are important to G3.
+
+```{r, echo=FALSE, warning=FALSE}
+model1 <- lm(G3~goout+romantic+failures, data = school_data)
+summary(model1)
+```
+From the linear model, we can ultimately draw from it a linear equation that can help with analyzing the data. To do this, we will look at each number that falls under the column Estimate Std.
+This equation is: Y = 12.5788 - 2.9056 * failures - 0.9466 * romanticyes -0.3689 * goout. 
+
+We can quickly conclude that when all 3 variables are equal to 0, the average score for the student's is 12.5788. 
+For the failure variable, we can quickly see that when it's 0, the student's grade is -2.0956. 
+For Romantic Yes, when it's 0, the student's grade is -0.9466. 
+For goout, when it's 0, the student's grade is -0.3689. 
+
+We also can evaluate how much of the variance in the data can be explained. To do this, we can use the value at the Multiple R-Squared, which in this case is 0.1472 or 14.72%. Ultimately, 14.72% of the variance in the data can be explained. 
+
+# Line Assumption
+
+```{r}
+par(mfrow = c(2,2))
+plot(model1)
+```
+In these plots, we want to see whether or not we can assume normality with this data. In the case of this data set, there aer some points that lie very far away from the normality line (highlighted in red), so this data does not meet the criteria to be deemed "normal". 
+
+# Conclusion
+
+From this plot, we can see that for G3, the greatest variable of influence on it is how many failures the student has. From the Jitter Plot, those two variables have the strongest relationship which means that it is of greater influence. Some iporvements that can be made to this proejct are ways that variables such as goout and romatic are meauresd. Instead of using a number system, if there was a yes or no measurement, it would be easier to plot with and also run tests with. 
+
+```{r}
+school_data %>% ggplot(aes(x = G3, y = failures)) + geom_jitter(col = 'Green')
+school_data %>% ggplot(aes(x = G3, y = goout)) + geom_jitter(col = "Magenta")
+school_data %>% ggplot(aes(x = G3, y = romantic)) + geom_jitter(col = "Blue")
+```
+

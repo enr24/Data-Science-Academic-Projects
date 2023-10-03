@@ -1,0 +1,99 @@
+---
+title: "362-Project-3"
+author: "Emmanuel Rayappa"
+date: "Updated r Sys.Date()"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+---
+
+```{r, echo=FALSE, message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(MASS)
+library(lme4)
+library(faraway)
+library(pbkrtest)
+library(lattice)
+```
+
+## Introduction to dataset and its importance
+We have all come to learn about drugs and how they can be a benefit for our health, but also be misused to the point that they end up becoming just as harmful to our health and causes users to experience drug addiction. As a results of addiction, users can experience several side effects than can be harmful to their physical and neural health. However, the focus of the project in this case is on the benefit of a drug to help with anxiety and how it can affect a users memory, both Short and Long term memory. Anxiety has long been an issues for people and recently has turned into a stigma. However, researches have been steadily finding ways for people to have less anxiety through 
+
+## Variables 
+In this data, an experiment is conducted on the effects of anti-anxiety medicine on memory recall when being primed with happy or sad memories. There were two different types of drugs used in addition to a placebo, which is referred to as "S". The first drug is Xanex and is referred to as "A" with dosages varying from 1mg, 3mg, or 5mg.This drug focused on the patients Long-Term memory. The second drug is Halcion and is referred to as "B" with dosages varying from 0.25mg, 0.5mg, and 0.75mg. This drug focused on the patients Short-Term memory. The patients were separated into two separate types of memories, Happy (H) or Sad (S)memories, Their memories were tested both before and after taking the drug and the difference was observed. Additionally within the data is information about the patients name (Both First and Last Name), and their age.
+
+```{r, message=FALSE, warning=FALSE,echo=FALSE}
+memory <- read.csv("Islander_data.csv")
+head(memory)
+```
+## EDA
+Before we conduct various tests on the experiment data, we should conduct exploratory data analysis and see what our data looks like with the various variables. For the most part, we should see a 50-50 split between the number of patients in each group and the number of drug types that are administered. 
+One thing that will not necessarily be the same however is the age of the patients. To learn more about the age of out patients, we can simply make a box-plot, which can help us understand some of the age trends. 
+
+```{r, echo=FALSE, warning=FALSE}
+memory %>% ggplot(aes(x = Happy_Sad_group)) + labs(title = "Group")+ geom_bar(aes(fill = Happy_Sad_group)) 
+memory %>% ggplot(aes(x = Drug)) + labs(title = "Drug Type")+ geom_bar(aes(fill = Drug)) + labs(Title = "Drug Type")
+```
+From the box-plot below, we see that the average age of our patients from the box-plot is approximately 35. We have patients than range from 40-60 with a few patients in the experiment being 80 and older. These outliers are very interesting because  
+```{r, echo=FALSE, warning=FALSE}
+ memory %>% ggplot(aes(y = age)) + geom_boxplot(fill = "blue") + labs(title = "Average age of participants")
+```
+## Are there any effects
+To see if there are any significant variables that influence, we can run a simple linear model and see what the results are. From running this mode, we see that the score before and score after as well as the dosage are important. The first two variables shouldn't be much of a surprise as the diff variable is based on the score before and score after.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+model_lm = lm(Diff~.-first_name-last_name-age, data = memory)
+summary(model_lm)
+```
+
+
+## Running A mixed effects model
+With this data, we want to try and test effect that are both random(group and dosage) vs fixed ones(Difference in Test Score and Drug)
+
+With this mixed effect model, we establish that we are treating the diff (Difference in scores) and Drug as fixed effects and are using the happy_sad_group(What group the patient is in) and the Dosage as random effects.From this, we find that there is variation based on the group they are in as well as the drug administered, but not necessarily with the dosage. 
+
+```{r, echo=FALSE, message=FALSE,warning=FALSE}
+model1 = lmer(Diff~Drug + (Happy_Sad_group|Dosage),data = memory)
+summary(model1)
+```
+
+## Another mixed model?
+We can run another mixed model, but this time set the two scores of the memory test as random effects. Then what we can do is see if there is any attribute with the two test scores (before taking the drug and after taking the drug) as random effect
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+model2 = lmer(Diff~Drug + (Dosage|Happy_Sad_group) + (1|Mem_Score_Before)+(1|Mem_Score_After), data = memory)
+summary(model2)
+```
+
+## Significance using LRT
+If a certain effect has significance on a model, then when we calculate the pchisq, it should be less than 0.05 for it to have significance. When we make this calculation however, we find that the value is 0.06 meaning that there isn't statistical significance with regards to the two test scores (before and after) as random effects.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+LRT = as.numeric(2 *(logLik(model2)-logLik(model1)))
+1-pchisq(LRT, df=2)
+```
+
+## Diagnostics Plot 
+We can run a plot to see how well of a fit the effects are in the model.
+
+For the residual plot of model 1, the points are equally distributed above and below the zero line and there is no clear change on the variance. For the QQ plot, all the points are fairly close to the 45 degree line, thus the linear assumptions are all met. 
+
+For the residual plot of model 2, the points are equally distributed, but there are more outliers with that plot than with the plot for model 1, which make a worse fit than model 1
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+plot(model1)
+qqmath(model1)
+plot(model2)
+qqmath(model2)
+```
+
+## Conclusion and Improvements
+Based on the fit of the models, we can see that the mixed effects model (Model 1) is best for running an experiment on our data based on the fit in the diagnostics plot and that the effects carry statistical significance.The way that this data is set up, it should potentially account for the persons race, as this could effect how well their body is able to break down the drug. It should maybe also introduce a third drug and maybe this can improve the results of our model(s).
