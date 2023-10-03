@@ -1,0 +1,210 @@
+---
+title: "Lab 7"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 362: Statistical Modeling'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes to denote your answer by putting a ">" at the beginning of the line). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your HTML file and upload to BlueLine.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(MASS)
+library(faraway)
+```
+
+Components are attached to an electronic circuit card assembly by a wave-soldering process. The soldering process involves baking and pre-heating the circuit card and then passing it through a solder wave by conveyor. Defects can arise during this process.
+
+```{r}
+data(wavesolder)
+head(wavesolder)
+```
+
+Each combination of the explanatory variables was tested on three replicates:
+
+- `prebake`: prebake condition - a factor with levels 1, 2
+- `flux`: flux density - a factor with levels 1, 2
+- `speed`: conveyor speed - a factor with levels 1, 2
+- `preheat`: preheat condition - a factor with levels 1, 2
+- `cooling`: cooling time - a factor with levels 1, 2
+- `agitator`: ultrasonic solder agitator - a factor with levels 1, 2
+- `temp`: solder temperature - factor with levels 1, 2
+
+The data is stored in non-tidy format: `y1`, `y2`, and `y3` represent the three replicates under each combination - in this case, the number of defects observed. There are two variables of interest:
+
+1. The `mean` number of defects per condition.
+2. The standard deviation (`sd`) of the number of defects.
+
+The code below adds the `mean` and `sd` of the number of defects to the data set. These are calculated directly instead of using the R built-in functions because of how the data is formatted.
+
+```{r}
+wavesolder <- wavesolder %>%
+  mutate(mean=(y1 + y2 + y3)/3,
+         sd=sqrt(((y1-mean)^2 + (y2-mean)^2 + (y3-mean)^2)/2))
+head(wavesolder)
+```
+
+## Question 1
+
+First, we want to build a model to determine which combination(s) of explanatory variables lead to a lower `mean` number of defects.
+
+a) Plot a histogram or density plot of the mean number of defects and describe the shape of this distribution.
+> This figure tells us that the variable mean is skewed to the right with most of the data below 25 with a couple of outliers at larger values. 
+
+```{r}
+wavesolder %>% ggplot(aes(x = mean)) + geom_histogram()
+```
+
+b) Fit a linear model with a normal response to predict the mean number of defects, using all explanatory variables. Which variables are significant?
+> The only variable that is significant is the speed. 
+
+```{r}
+model.lm = glm(mean~.-y1-y2-y3-sd, data = wavesolder)
+summary(model.lm)
+```
+
+c) Fit a linear model with a gamma response (inverse link) to predict the mean number of defects, using all explanatory variables. Which variables are significant?
+> The variables of significance are prebake, flux, speed, and temp.
+
+```{r}
+model.inverse = glm(mean~.-y1-y2-y3-sd, data = wavesolder,family = Gamma(link = "inverse"))
+summary(model.inverse)
+```
+
+d) Fit a linear model with a gamma response (log link) to predict the mean number of defects, using all explanatory variables. Which variables are significant?
+> The only variable of significant influence is the speed, just like our first model. 
+
+```{r}
+model.log = glm(mean~.-y1-y2-y3-sd, data = wavesolder,family = Gamma(link = "log"))
+summary(model.log)
+```
+
+e) For each of the three models, add the fitted values to the `wavesolder` data set. Calculate the mean absolute error and mean square error for the three models. Based on MAE and MSE, which is "best"?
+
+```{r}
+wavesolder2 = wavesolder %>% mutate(pred.lm = model.lm$fitted.values,
+                                    pred.inverse = model.inverse$fitted.values,
+                                    pred.log = model.log$fitted.values)
+head(wavesolder2)
+
+wavesolder2 %>% summarize(MSE.lm = mean((mean-pred.lm)^2), MSE.inverse = mean((mean-pred.inverse)^2),MSE.log = mean((mean-pred.log)^2))
+
+wavesolder2 %>% summarize(MAE.lm = mean(abs(mean-pred.lm)), MAE.inverse = mean(abs(mean-pred.inverse)^2),MAE.log = mean(abs(mean-pred.log)))
+
+```
+
+f) Calculate the AIC for the three fitted models. Based on AIC, which is "best"?
+g) Plot the fitted values against the observed values for the three fitted models. Which is "best"?
+
+```{r}
+AIC(model.lm)
+AIC(model.log)
+AIC(model.inverse)
+```
+
+h) Based on e), f), and g), select your overall "best" model. Based on the "best" model, how should we set the explanatory variables to minimize the mean number of defects?
+
+> The gamma model with the inverse link is the best model since it gives the lowest AIC, MSE, and MAE. It also looks good on a data visualization, which indicates that the actual mean and predicted mean are almost consistent. In order to minimize the mean number, the prebake shoudl be at level 1, the flux will be at level 2, speed at level1, and the temp at level 2. 
+
+```{r}
+library(gridExtra)
+p1 = wavesolder2 %>% ggplot(aes(x = mean, y = pred.lm))+geom_point(col = "black")
+p2 = wavesolder2 %>% ggplot(aes(x = mean, y = pred.inverse))+geom_point(col = "blue")
+p3 = wavesolder2 %>% ggplot(aes(x = mean, y = pred.log))+geom_point(col = "red")
+grid.arrange(p1,p2,p3,nrow = 1)
+```
+
+
+## Question 2
+
+Now, repeat this process to build a model for the standard deviation of the number of defects.
+
+a) Plot a histogram or density plot of the standard deviation of the number of defects and describe the shape of this distribution.
+> Much like the mean values, the standard deviation is skewed to the right with most of the data below 15 whit a couple of outliers
+
+```{r}
+wavesolder %>% ggplot(aes(x = sd)) + geom_histogram()
+```
+
+b) Fit a linear model with a normal response to predict the standard deviation of the number of defects, using all explanatory variables. Which variables are significant?
+> There are no significant variables
+
+```{r}
+model.lm2 = glm(sd~.-y1-y2-y3-mean, data = wavesolder)
+summary(model.lm2)
+```
+
+c) Fit a linear model with a gamma response (inverse link) to predict the standard deviation of the number of defects, using all explanatory variables. Which variables are significant?
+> The prebake variable is the only variable of significance. 
+
+```{r}
+model.inverse2 = glm(sd~.-y1-y2-y3-mean, data = wavesolder, family = Gamma(link = "inverse"))
+summary(model.inverse2)
+```
+
+d) Fit a linear model with a gamma response (log link) to predict the standard deviation of the number of defects, using all explanatory variables. Which variables are significant?
+> The variables of significane are prebake and speed.
+
+```{r}
+model.log2 = glm(sd~.-y1-y2-y3-mean, data = wavesolder, family = Gamma(link = "log"))
+summary(model.log2)
+```
+
+e) For each of the three models, add the fitted values to the `wavesolder` data set. Calculate the mean absolute error and mean square error for the three models. Based on MAE and MSE, which is "best"?
+> Based on the MAE and MSE, the inverse model has the best. 
+
+```{r}
+wavesolder3 = wavesolder %>% mutate(pred.lm = model.lm2$fitted.values,
+                                    pred.inverse = model.inverse2$fitted.values,
+                                    pred.log = model.log2$fitted.values)
+head(wavesolder3)
+
+wavesolder3 %>% summarize(MSE.lm = mean((sd-pred.lm)^2), MSE.inverse = mean((sd-pred.inverse)^2),MSE.log = mean((sd-pred.log)^2))
+
+wavesolder3 %>% summarize(MAE.lm = mean(abs(sd-pred.lm)), MAE.inverse = mean(abs(sd-pred.inverse)),MAE.log = mean(abs(sd-pred.log)))
+```
+
+f) Calculate the AIC for the three fitted models. Based on AIC, which is "best"?
+> The inverse is the best. 
+
+```{r}
+AIC(model.lm2)
+AIC(model.inverse)
+AIC(model.log)
+```
+
+g) Plot the fitted values against the observed values for the three fitted models. Which is "best"?
+> The inverse model is the best. 
+
+```{r}
+p4 = wavesolder3 %>% ggplot(aes(x = sd, y = pred.lm))+geom_point(col = "black")
+p5 = wavesolder3 %>% ggplot(aes(x = sd, y = pred.inverse))+geom_point(col = "blue")
+p6 = wavesolder3 %>% ggplot(aes(x = sd, y = pred.log))+geom_point(col = "red")
+grid.arrange(p4,p5,p6,nrow = 1)
+```
+
+h) Based on e), f), and g), select your overall "best" model. Based on the "best" model, how should we set the explanatory variables to minimize the standard deviation of the number of defects?
+> Based on the results, the Inverse variable in once again the best which minimizes the number of defects. In order to minimize the mean number, the prebake will be at level 1. 
+
+## Question 3
+
+What setting would you recommend to minimize _both_ the mean and standard deviation of the number of defects? Explain your reasoning.
+
+> Based on the results in Question 1 and 2, we need to set the prebake at level 1, may also need to set speed at level 1 

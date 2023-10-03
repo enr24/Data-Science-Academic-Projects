@@ -1,0 +1,289 @@
+---
+title: "Lab 6: Statistical foundation"
+subtitle: "MTH 365: Intro to Data Science"
+author: "Emmanuel Rayappa"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: pdf_document
+---
+
+In this lab we will work with the `tidyverse`, `infer`, `mosaic`, and `openintro` packages. `infer` and `openintro` may be new for you -- if so make sure to install them!
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, fig.width=4, fig.height=3)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse) 
+library(infer)
+library(mosaic)
+library(openintro)
+
+```
+
+# North Carolina Birth Weight
+
+In 2004, the state of North Carolina released a large data set containing information on births recorded in this state. This data set is useful to researchers studying the relation between habits and practices of expectant mothers and the birth of their children. In this lab we'll be generating random samples from the data set. The last thing you want is those samples to change every time you knit your document. So, you should set a __seed__ value: a number (or vector) used to initialize a pseudorandom number generator. 
+
+## Data: `ncbirths`
+
+Load the `ncbirths` data from the `openintro` package:
+
+```{r}
+data(ncbirths)
+```
+
+We have observations on 13 different variables, some categorical and some 
+numerical. The meaning of each variable is as follows.
+
+variable         | description
+---------------- | ---------------------------------------------
+`fage`           | father's age in years.
+`mage`           | mother's age in years.
+`mature`         | maturity status of mother.
+`weeks`          | length of pregnancy in weeks.
+`premie`         | whether the birth was classified as premature (premie) or full-term.
+`visits`         | number of hospital visits during pregnancy.
+`marital`        | whether mother is `married` or `not married` at birth.
+`gained`         | weight gained by mother during pregnancy in pounds.
+`weight`         | weight of the baby at birth in pounds.
+`lowbirthweight` | whether baby was classified as low birthweight (`low`) or not (`not low`).
+`gender`         | gender of the baby, `female` or `male`.
+`habit`          | status of the mother as a `nonsmoker` or a `smoker`.
+`whitemom`       | whether mom is `white` or `not white`.
+
+> 1. The first step in the analysis of a new dataset is getting acquanted with the data. What are the observations in this data set? How many observations are there in our sample?
+
+```{r}
+nrow(ncbirths)
+
+```
+
+> Answer: There are 1000 observations in ths data set.
+
+> 2. Make summaries of the variables in your dataset, determine  which variables are categorical and which are numerical. For numerical variables, are there outliers? If you aren't sure or want to take a closer look at the data, make a graph.
+
+```{r}
+glimpse(ncbirths)
+
+```
+
+> Answer: Of the 13 variables in this dataset, the variable fage(father's age), mage(mother's age), weeks, visits and ganied (weight the mother gained), are numerical observations. The variables mature, premie(whether or not the baby was pre-mature or not), lowbirthweight, gender, habit, and white mom are all categorical. 
+
+---
+
+A 1995 study suggestes that average weight of Caucasian babies born in the US is 3,369 grams (7.43 pounds). In this dataset we only have information on mother's race, so we will make the simplifying assumption that babies of Caucasian mothers are also Caucasian, i.e. `whitemom = "white"`. 
+
+We want to evaluate whether the average weight of Caucasian babies has changed since 1995. We can do that using a statistical technique called a __hypothesis test__.
+
+## Hypothesis test: outline
+
+Here's the basic idea.
+
+__Step 1__: Write two hypotheses about the population. The __null hypothesis__ represents a "skeptical claim", usually that there has been no change in the population parameter. The __alternative hypothesis__ is a competing idea based on the research question.
+
+- Our null hypothesis should state "there is nothing going on", i.e. no change since 1995: $H_0: \mu = 7.43~pounds$.
+
+- Our alternative hypothesis should reflect the research question, i.e. some change since 1995. Since the research question doesn't state a direction for the change, we use a two sided alternative hypothesis: $H_A: \mu \ne 7.43~pounds$.
+
+__Step 2__: Calculate a __test statistic__ based on our data. A natural test statistic for seeing whether the population mean $mu$ has changed is the sample mean, $\bar{x}$.
+
+> 3. Create a filtered data frame called `ncbirths_white` that contain data only from white mothers. Then, calculate the mean of the weights of their babies.
+
+```{r}
+ncbirths_white <- filter(ncbirths, whitemom == "white")
+summarise(ncbirths_white, mean_weight = mean(weight))
+
+```
+
+__Step 3__: Determine how often the __test statistic__ (or a value of the test statistic even more extreme or unusual) would occur, _if the null hypothesis is actually true_. We call this probability a __p-value__.
+
+Let's discuss how this test would work. Our goal is to simulate a null distribution of sample means that is centered at the null value of 7.43 pounds. In order to do so, we 
+
+1. Take a bootstrap sample of from the original sample,
+2. Calculate this bootstrap sample's mean,
+3. Repeat these two steps a large number of times to create a bootstrap distribution of means centered at the observed sample mean,
+4. Shift this distribution to be centered at the null value. Calculate a X value which is the difference between mean of bootstrap distribution and null value. 
+5. Calculate the p-value as the proportion of bootstrap samples that yielded a sample mean at least as extreme as the observed sample mean.
+
+__Step 4__: Based on the p-value, make a decision. 
+
+- If the p-value is sufficiently "small", we reject the null hypothesis and conclude that the alternative is more plausible given our data.
+- If the p-value is not "small", we fail to reject the null hypothesis. __We don't accept the null hypothesis as truth!__ We just don't have evidence to throw it out.
+
+Usually we choose a standard, called significant level, before the test to decide whether the p values are small enough. Default significant level is $\alpha = 0.05$.
+
+> 4. First, take a 1000 bootstrap sample and calculate the mean for each of them. Plot the density plot of the result. Then calculate the mean of the bootstrap samples and get value X (step 3.4, be careful about the sign of X). Finally, calculate in the bootstrap sample, what is the proportion of data that is outside the range $mean \pm X$ (step 3.5). Compare the pvalue with significant level $\alpha = 0.05$ and interpret the results in context of the data and the hypothesis test.
+
+```{r}
+set.seed(1)
+Bootstrap_Means <- ncbirths_white %>% 
+  specify(response = weight) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "mean")
+smoking_values <- Bootstrap_Means %>% summarise(mean(stat))
+x_value <- abs(smoking_values - 7.43)
+Bootstrap_Means %>% summarise(sum(stat > mean(stat) + x_value), sum(stat < mean(stat) - x_value))
+glimpse(Bootstrap_Means)
+
+ggplot(Bootstrap_Means, aes(x=stat))+geom_density(fill='blue', alpha = 0.05)+labs(x='Mean Weight') + ylab('frequency')
+
+```
+
+> Answer: The expected weight vs the average weight has a difference of 0.18, which means that the mean weight has dropped from 7.43 to 7.25. 
+
+---
+
+## Baby weight vs. smoking
+
+Consider the possible relationship between a mother's smoking habit and the weight of her baby. Plotting the data is a useful first step because it helps us quickly visualize trends, identify strong associations, and develop research questions.
+
+> 5.  Make side-by-side boxplots displaying the relationship between `habit` and `weight`. What does the plot highlight about the relationship between these two variables?
+
+```{r}
+ggplot(ncbirths_white, aes(x = habit, y = weight)) + geom_boxplot(aes(fill = habit))
+
+```
+
+> Answer: Babies who mothers were smokes had a lower average weight compared to babies of mother who were non-smokers. This shows that birth defects are indeed related to mothers smoking while pregnant.
+
+> 6. Before moving forward, save a version of the dataset omitting observations where there are NAs for `habit`. You can call this version `ncbirths_habit`.
+
+```{r}
+ncbirths_habit <- na.exclude(ncbirths,"habits")
+
+```
+
+The box plots show how the medians of the two distributions compare, but we can also compare the means of the distributions using the following to first group the data by the `habit` variable, and then calculate the mean `weight` in these groups using.
+
+```{r}
+ncbirths_habit %>%
+  group_by(habit) %>%
+  summarize(mean_weight = mean(weight))
+```
+
+There is an observed difference, but is this difference statistically significant? In order to answer this question we will conduct a hypothesis test.
+
+> 7. Write the hypotheses for testing if the average weights of babies born to smoking and non-smoking mothers are different.
+
+> Answer: Hypthesis: The weight of babies whose mothers are not smokers will be more than the weight of babies.
+
+> 8. Run the appropriate hypothesis test, plot the density plot, calculate the p-value, and interpret the results in context of the data and the hypothesis test with significant level $\alpha = 0.05$. (Review the question 4 if you need a hint. In this case, what is the null value when there is no difference? )
+
+```{r}
+set.seed(365)
+birthMeans <- ncbirths %>% 
+  specify(response = weight, explanatory = habit) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("nonsmoker", "smoker"))
+birthMean <- birthMeans %>% summarise(mean(stat)) %>% pull()
+glimpse(birthMeans)
+x_value <- abs(birthMean - 0)
+birthMeans %>% summarise(sum(stat > mean(stat) + x_value), sum(stat < mean(stat) - x_value))
+glimpse(birthMeans)
+
+ggplot(birthMeans, aes(x=stat))+geom_density(fill='blue', alpha = 0.05)+labs(x='Mean Weight') + ylab('frequency')
+
+
+```
+
+> Answer: The null value in this case is 15, while the alternate is 2. the P-value is 0.017, which means that the null hypothesis of smoking mothers affecting babies weights is true. 
+
+> 9. Construct an approximate 95% confidence interval for the difference between the average weights of babies born to smoking and non-smoking mothers. You can also consider this is to find the quantile 2.5 and quantile 97.5. 
+
+```{r}
+birthMeans %>% summarise(q2.5 = quantile(stat, 0.025), q97.5 = quantile(stat, 0.975))
+```
+
+---
+
+# Green Wine
+
+"Vinho Verde" (Portuguese: "green wine") refers to a Portuguese style of wine that originated in the historic Minho province in the far north of the country. The name literally means "green wine," but translates as "young wine", with wine being released in 3-6 months after the grapes are harvested. They may be red, white, or rose and they are usually consumed soon after bottling.
+
+A group of researchers living in Guimaraes, Portugal used data mining to classify the quality of white and red Vinho Verde wines based on their chemical properties: acidity, sugar content, chlorides, sulfur dioxide, density, etc. 
+
+- P. Cortez, A. Cerdeira, F. Almeida, T. Matos and J. Reis. "Modeling wine preferences by data mining from physicochemical properties." In Decision Support Systems, Elsevier, 47(4):547-553. ISSN: 0167-9236.
+
+```{r}
+white_wine <- read.csv("winequality-white.csv", sep=";")
+glimpse(white_wine)
+```
+
+> 10. In this lab, we will mainly focus on the the variable density and quality. What type of data they are? Plot their distribution and comment whether there are any outliers. 
+
+```{r}
+glimpse(white_wine)
+ggplot(white_wine, aes(x = density)) + geom_boxplot()
+ggplot(white_wine, aes(x = quality)) + geom_boxplot()
+
+```
+
+> Answer: There are 12 variable which are all continuous numerical variables. For both categories, there are outliers.
+
+> 11. We'll consider a "high quality" wine to be one with a rating of 7 or higher. Add a column called `high_quality` to the data to indicate whether the wine is low or high quality. Calculte the mean density level for both groups. Plot the distribution of density for both groups. Comment the difference. 
+
+```{r}
+white_wine <- white_wine %>% mutate(high_quality = quality >= 7)
+
+ggplot(white_wine, aes(x = density)) + geom_density(aes(fill= high_quality)) + facet_wrap(~high_quality, nrow = 2)
+```
+
+> Answer: Generaly, there are more wines with a density between 0.99 and 1.00. There are not many wines that have density more than 1.00. There appears to be an even number of wine that are high and low quality.
+
+> 12. Now we try to identify whether there is a significant difference on the mean density level between the high quality group and low quality group with the hypothesis test. Interpret your result based on the p value. (Hint: See question 8 for the codes.)
+
+```{r}
+set.seed(365)
+wineMeans <- white_wine %>% 
+  specify(response = density, explanatory = high_quality) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("TRUE", "FALSE"))
+wineMean <- wineMeans %>% summarise(mean(stat)) %>% pull()
+glimpse(wineMean)
+x_value <- abs(wineMean - 0)
+wineMeans %>% summarise(sum(stat > mean(stat) + x_value), sum(stat < mean(stat) - x_value))
+glimpse(wineMeans)
+
+ggplot(wineMeans, aes(x=stat))+geom_density(fill='blue', alpha = 0.05)+labs(x='Mean density') + ylab('frequency')
+
+```
+
+> Answer: There is significant difference at -0.2. The p-values of-0.02 means that a higher density means higher quality.
+
+> 13. Repeate the question 11 and 12 for variable `free.sulfur.dioxide` instead of the `density`. 
+
+```{r}
+white_wine <- white_wine %>% mutate(sulfur_dixoide =free.sulfur.dioxide >= 100)
+
+ggplot(white_wine, aes(x = density)) + geom_density(aes(fill= sulfur_dixoide)) + facet_wrap(~sulfur_dixoide, nrow = 2)
+
+set.seed(365)
+wineMeans <- white_wine %>% 
+  specify(response = free.sulfur.dioxide, explanatory = high_quality) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("TRUE", "FALSE"))
+wineMean <- wineMeans %>% summarise(mean(stat)) %>% pull()
+glimpse(wineMeans)
+x_value <- abs(wineMean - 0)
+wineMeans %>% summarise(sum(stat > mean(stat) + x_value), sum(stat < mean(stat) - x_value))
+glimpse(wineMeans)
+
+ggplot(wineMeans, aes(x=stat))+geom_density(fill='blue', alpha = 0.05)+labs(x='Mean density') + ylab('frequency')
+```
+
+> Answer: The p value is 0.003, which means that the null hypothesis is true. 
+
+> 14. What have you learned from question 11-13? Discuss why calculating the difference between one sample and observing the data visualization are not enough to distinguish the difference of mean values between groups. 
+
+> Answer: Calculating the difference isn't enough because of the sample size. A larger sample size can improve results.
+
+---
+
+Question 4,8,10-13 worth 10 points. Other Questions worth 5 points
+
+Your submissions will be assessed on:
+
+1. Correctness of your code or your answer to the questions. (5-10 pts. per question).
+3. Code formatting: consistency, readability, etc. (5 pts. per question).
+
+Total points possible: 100

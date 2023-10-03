@@ -1,0 +1,450 @@
+---
+title: "Lab 6"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 362: Statistical Modeling'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes to denote your answer by putting a ">" at the beginning of the line). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your PDF/HTML file and upload to BlueLine.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(MASS)
+```
+
+## Question 1
+
+An article in the _Journal of Animal Ecology_ by Bishop (1972) investigated whether moths provide evidence of “survival of the fittest” with their camouflage traits. Researchers glued equal numbers of light and dark morph moths in lifelike positions on tree trunks at 7 locations from 0 to 51.2 km from Liverpool. They then recorded the numbers of moths removed after 24 hours, presumably by predators. The hypothesis was that, since tree trunks near Liverpool were blackened by pollution, light morph moths would be more likely to be removed near Liverpool.
+
+Data can be found in `moth.csv` and contains the following variables:
+
+- `MOPRH` = light or dark
+- `DISTANCE` = kilometers from Liverpool
+- `PLACED` = number of moths of a specific morph glued to trees at that location
+- `REMOVED` = number of moths of a specific morph removed after 24 hours
+
+```{r}
+moth = read.csv("moth.csv")
+moth = mutate(moth, notremoved = PLACED - REMOVED, 
+               logit1 = log(REMOVED / notremoved),
+               prop1 = REMOVED / PLACED, 
+               dark = ifelse(MORPH=="dark",1,0) )
+```
+
+The response variable in this study is the proportion of moths removed after 24 hours.
+
+a) Create "empirical logit plots" (plot logits vs. distance by morph). What can we conclude from this plot?
+
+```{r}
+moth %>% ggplot(aes(x = DISTANCE, y = logit1)) + geom_point()
+```
+
+b) Create a model with `DISTANCE` and `dark`. Interpret all the coefficients.
+
+> Based on th emode, the color of the moth is associated with the porportion of the removed parts. Colors that are "dark" are more likely to be removed
+
+```{r}
+model1 = glm(prop1~DISTANCE + dark, data = moth, family = "binomial", weights = PLACED)
+summary(model1)
+```
+
+c) Create a model with `DISTANCE`, `dark`, and the interaction between both variables. Interpret all the coefficients.
+
+```{r}
+model2 = glm(prop1~ DISTANCE + dark + DISTANCE:dark, data = moth, family = binomial, weights = PLACED)
+summary(model2)
+```
+> Based on this model, only the interaction term is significant. This means that the color of the moth will significanlty affect the relation between distance and the proportion of what is removed. However, the color itself will not directly affect on data that is removed. 
+
+d) Interpret a drop-in-deviance test and a Wald test to test the significance of the interaction term in (c).
+> The drop-in-deviance test suggests that adding the interaction term will signifcantly drop the deviance, thus it is necessary to include the interaction term. Based on the summary tble, the interaction therm aslo has a small p value, thus the Wald Test also suggests the interaction is necessary. 
+
+```{r}
+anova(model1,model2,test ="Chisq")
+```
+
+e) Test the goodness of fit for the interaction model. What can we conclude about this model?
+> This is a good fit since the p-value is large
+
+```{r, message=FALSE, warning=FALSE}
+1 - pchisq(model2$deviance, model2$df.residual)
+1 - pchisq(model1$deviance, model1$df.residual)
+```
+
+f) Is there evidence of overdispersion in the interaction model? What factors might lead to overdispersion in this case? 
+> Because the number is larger than 1, there is some evidence of overdispersion, but it shoulnd't be a huge problem. 
+
+```{r}
+model2$deviance / (14-3)
+```
+
+g) Regardless of your answer, repeat (c) adjusting for overdispersion.
+
+> This model does not change dramatically despite there being evidence of overdispersion
+
+```{r}
+model3 = glm(prop1~ DISTANCE + dark + DISTANCE:dark, data = moth, family = "quasibinomial", weights = PLACED)
+summary(model3)
+```
+
+h) Compare confidence intervals that you find in (g) and in (c).
+
+```{r}
+confint(model2)
+confint(model3)
+```
+
+
+## Question 2 (Complete by yourself)
+
+A student project (Blakeman, Renier, and Shandaq 2018) examined driving forces behind Donald Trump’s victory in the 2016 Presidential Election, using data from nearly 40,000 voters collected as part of the 2016 Cooperative Congressional Election Survey (CCES). The student researchers investigated two theories: (1) Trump was seen as the candidate of change for voters experiencing economic hardship, and (2) Trump exploited voter fears about immigrants and minorities.
+
+The dataset `electiondata.csv` has individual level data on voters in the 2016 Presidential election, collected from the CCES and subsequently tidied. We will focus on the following variables:
+
+- `Vote` = 1 if Trump; 0 if another candidate
+- `zfaminc` = family income expressed as a z-score (number of standard deviations above or below the mean)
+- `zmedinc` = state median income expressed as a z-score
+- `EconWorse` = 1 if the voter believed the economy had gotten worse in the past 4 years; 0 otherwise
+- `EducStatus` = 1 if the voter had at least a bachelor’s degree; 0 otherwise
+- `republican` = 1 if the voter identified as Republican; 0 otherwise
+- `Noimmigrants` = 1 if the voter supported at least 1 of 2 anti-immigrant policy statements; 0 if neither
+- `propforeign` = proportion foreign born in the state
+- `evangelical` = 1 if `pew_bornagain` is 2; otherwise 0
+
+The questions below address Theory 1 (Economic Model). We want to see if there is significant evidence that voting for Trump was associated with family income level and/or with a belief that the economy became worse during the Obama Administration.
+
+a) Create a plot showing the relationship between whether a voter voted for Trump and their opinion about the status of the economy. What do you find?
+
+```{r}
+election = read.csv("electiondata.csv")
+head(election)
+
+election %>% ggplot(aes(x = Vote, y = EconWorse)) + geom_jitter()
+election %>% ggplot(aes(x = Vote)) + geom_bar()+ facet_wrap(~EconWorse)
+
+```
+
+b) Repeat (a) separately for Republicans and non-Republicans. Again describe what you find.
+
+```{r}
+election %>% ggplot(aes(x = Vote)) + geom_bar() + facet_wrap(~EconWorse + republican)
+```
+
+c) Create a plot with one observation per state showing the relationship between a state’s median income and the log odds of a resident of that state voting for Trump. What can you conclude from this plot?
+
+```{r}
+election %>% 
+  group_by(inputstate) %>%
+  mutate(p = sum(Vote == 1)/n()) %>%
+  mutate(logit = log(p/(1-p))) %>%
+  ggplot(aes(x = medinc, y = logit)) + geom_point()
+```
+
+
+Fit the following model to your data:
+
+```{r, eval=FALSE}
+election$Vote = as.factor(election$Vote)
+model1a <- glm(Vote ~ zfaminc + zmedinc + EconWorse + EducStatus +
+  republican + EducStatus:republican + EconWorse:zfaminc + 
+  EconWorse:republican, family = binomial, data = election)
+summary(model1a)
+```
+
+d) Interpret the coefficient for `zmedinc` in context.
+
+The coefficient for zmedinc in this context is indicative of the average z-score for voters income.
+e) Interpret the coefficient for `republican` in context.
+
+The coefficient for republican in context is that there are more people in average that are not republican in this dataset vs peopl who are republican. 
+
+f) Interpret the coefficient for `EconWorse:republican` in context. What does this allow us to conclude about Theory 1?
+
+This allows for us to conclude that many people who felt that economy was worse would be registered as republican. 
+g)  Is there any concern about the independence assumption in these models? 
+
+There are no immediate concerns about independence assumption in these models. 
+
+## Question 3
+
+The goal of this question is to practice choosing the "best" link function on real data.
+
+
+It turns out that there are more options available than just the _canonical link_.
+
+Distribution|R package|Link functions
+---|-----|-----
+Normal/Gaussian|`stats`|identity, log, inverse
+Binomial|`stats`|logit, probit, cauchit, log, cloglog
+Gamma|`stats`|inverse, identity, log
+Poisson|`stats`|log, identity, sqrt
+Negative binomial|`MASS`|log, sqrt, identity
+
+How do we choose? In some situations, an _alternative link_ function might:
+
+1. Be more interpretable in context
+2. Give more accurate results
+
+### Alternative links for binomial response
+
+Let $p$ represent the probability of success.
+
+1. __Probit link__: Assumes that the response variable assumes an underlying, unobservable Gaussian (normal) process that is visible to us only as a "success" or "failure". The probability $p$ corresponds to the area under the normal curve.
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(NULL, aes(c(-3,3))) +
+  geom_area(stat = "function", fun = dnorm, 
+            fill = "#019cbd", xlim = c(-3, 1)) +
+  geom_area(stat = "function", fun = dnorm, 
+            fill = "grey80", xlim = c(1, 3)) + 
+  labs(x='x', title='Probit link')
+```
+
+2. __Cauchit link__: Same idea as the probit link, however the underlying process is Cauchy-distributed.
+
+```{r}
+ggplot(NULL, aes(c(-3,3))) +
+  geom_area(stat = "function", fun = dcauchy, 
+            fill = "#ffa300", xlim = c(-3, 1)) +
+  geom_area(stat = "function", fun = dcauchy, 
+            fill = "grey80", xlim = c(1, 3)) + 
+  labs(x='x', title='Cauchit link')
+```
+
+$$f(x;x_{0},\gamma )={\frac  {1}{\pi \gamma \left[1+\left({\frac  {x-x_{0}}{\gamma }}\right)^{2}\right]}}={1 \over \pi \gamma }\left[{\gamma ^{2} \over (x-x_{0})^{2}+\gamma ^{2}}\right]$$
+The Cauchy distribution:
+
+- Has two parameters, $x_0$ specifies the peak of the distribution and $\gamma$ specifies the variability (1/2 of the interquartile range).
+- Is similar to the normal distribution, with fatter "tails".
+- Is often called "pathological" by statisticians, $E(X)$ and $V(X)$ are undefined.
+
+3. __Log link__: Take the natural log of the probability.
+
+$$\eta = log(p)$$
+
+4. __Complementary-log-log link__: Useful for data where most of the probabilities lie close to zero or close to 1
+
+$$\eta = log(-log(1-p))$$
+
+### How do the link functions compare?
+
+1. The logit and probit are the most common link functions for the binomial, by far.
+2. The probit model requires numerical integration to solve (no closed form integral for the normal distribution). Same for the cauchit model.
+3. The logit, probit, and cauchit are all symmetric around $p=0.5$, whereas the cloglog link is skewed.
+4. Differences between the link functions are more pronounced for large $p$ than small $p$.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+p <- seq(from=0, to=1, length=1000)
+invlog <- log(p/(1-p))
+invprob <- qnorm(p, mean=0, sd=1)
+invcauch <- qcauchy(p)
+cloglog <- log(-log(1-p))
+log <- log(p)
+
+data <- tibble(p, invlog, invprob, invcauch, cloglog, log)
+
+library(gridExtra)
+
+p1 <- data %>% ggplot(aes(x=invprob, y=p)) + geom_line(col='grey') +  geom_line(aes(x=invcauch, y=p), col='grey') + xlim(-5, 5) + geom_line(aes(x=cloglog, y=p), col='grey') + geom_line(aes(x=log, y=p), col='grey') + geom_line(aes(x=invlog, y=p), col='#0054a6') + labs(x='Linear predictor', y='Probability', title='Logit link')
+
+p2 <- data %>% ggplot(aes(x=log, y=p)) + geom_line(col='grey') + geom_line(aes(x=invlog, y=p), col='grey') + geom_line(aes(x=invcauch, y=p), col='grey') + xlim(-5, 5) + geom_line(aes(x=cloglog, y=p), col='grey') + geom_line(aes(x=invprob, y=p), col='#019cbd') + labs(x='Linear predictor', y='Probability', title='Probit link')
+
+p3 <- data %>% ggplot(aes(x=invprob, y=p)) + geom_line(col='grey') + geom_line(aes(x=invlog, y=p), col='grey')  + xlim(-20, 20) + geom_line(aes(x=cloglog, y=p), col='grey') + geom_line(aes(x=log, y=p), col='grey') + geom_line(aes(x=invcauch, y=p), col='#ffa300') + labs(x='Linear predictor', y='Probability', title='Cauchit link')
+
+p4 <- data %>% ggplot(aes(x=invprob, y=p)) + geom_line(col='grey') + geom_line(aes(x=invlog, y=p), col='grey') + geom_line(aes(x=invcauch, y=p), col='grey') + xlim(-5, 5) + geom_line(aes(x=cloglog, y=p), col='grey') + geom_line(aes(x=log, y=p), col='#800080') + labs(x='Linear predictor', y='Probability', title='Log link')
+
+p5 <- data %>% ggplot(aes(x=invprob, y=p)) + geom_line(col='grey') + geom_line(aes(x=invlog, y=p), col='grey') + geom_line(aes(x=invcauch, y=p), col='grey') + xlim(-5, 5)  + geom_line(aes(x=log, y=p), col='grey') + geom_line(aes(x=cloglog, y=p), col='#73b865') + labs(x='Linear predictor', y='Probability', title='C-log-log link')
+
+grid.arrange(p1, p2, p3, p4, p5, nrow=2)
+```
+
+### Investigation 1: Graduate school admission
+
+A researcher is interested in how variables, such as GRE scores, GPA, and prestige of the undergraduate institution impact admission into graduate school. The response variable is whether or not the student was admitted into graduate school.
+
+```{r}
+admissions <- read.csv("https://stats.idre.ucla.edu/stat/data/binary.csv")
+head(admissions)
+```
+
+a).  Plot each potential explanatory variable against admission. Which variables will be better predictors of graduate school admission success?
+
+```{r}
+admissions %>% ggplot(aes(x = admit, y = gre, group = admit)) + geom_boxplot()
+admissions %>% ggplot(aes(x = admit, y = gre, group = admit)) + geom_boxplot()
+admissions %>% ggplot(aes(x = admit, y = rank, group = admit)) + geom_boxplot()
+```
+
+
+b).  Fit the following five models to predict graduate school admission based on a student's GRE, GPA, and school rank.
+
+```{r}
+model
+```
+
+1) `model1: logit link`
+2) `model2: probit link`
+3) `model3: cauchit link`
+4) `model4: log link`
+5) `model5: cloglog link`
+
+For each model, record the coefficients and significant variables ($*$) in the table below. Code to implement `model1` is provided to serve as a guide.
+
+Model|(Intercept)|GRE|GPA|Rank
+----|------------|----|----|----
+Model1|-3.449548 $*$|0.002294 $*$|0.777014 $*$|-0.560031 $*$
+Model2|  |  |  |
+Model3|  |  |  |
+Model4|  |  |  |
+Model5|  |  |  |
+
+- Using a single asterisk in an RMarkdown document *will automatically italicize any text between it and the following asterisk*. That could make your table look... interesting. To work around that, use the LaTeX asterisk $*$.
+
+```{r}
+model1 <- glm(admit ~ gre + gpa + rank, data=admissions, family=binomial(link=logit))
+summary(model1)
+
+model2 <- glm(admit ~ gre + gpa + rank, data=admissions, family=binomial(link=probit))
+summary(model2)
+
+model3 <- glm(admit ~ gre + gpa + rank, data=admissions, family=binomial(link=cauchit))
+summary(model3)
+
+model4 <- glm(admit ~ gre + gpa + rank, data=admissions, family=binomial(link=log), start = c(0,0,-1,-1))
+summary(model4)
+
+model5 <- glm(admit ~ gre + gpa + rank, data=admissions, family=binomial(link=cloglog))
+summary(model5)
+```
+
+c). Compare and contrast the model coefficients. Which models are similar, and which are different?
+
+d). For each model, calculate and record the AIC and results of the deviance test. Which link function provides a better fit?
+
+Model|AIC|Deviance p-value
+----|------------|--------------
+Model1|467.4418|0.01510054
+Model2|  |  
+Model3|  |  
+Model4|  |  
+Model5|  |  
+
+```{r}
+AIC(model1)
+1 - pchisq(model1$deviance, model1$df.residual)
+```
+
+e). Add the predicted values from each of the five models to your original data set. Calculate the correlation matrix - the correlation between all predicted values from the five models. How are the predictions from the five models related to each other?
+
+```{r}
+admissions <- admissions %>%
+  mutate(model1_pred = model1$fitted.values)
+cor(admissions)
+
+results = tibble(model1_pred = model1$fitted.values)
+results = tibble(model2_pred = model2$fitted.values)
+results = tibble(model3_pred = model3$fitted.values)
+results = tibble(model4_pred = model4$fitted.values)
+results = tibble(model5_pred = model5$fitted.values)
+# You might find the following package/function helpful for understanding correlations between variables
+
+#install.packages('PerformanceAnalytics')
+library(PerformanceAnalytics)
+admissions %>% chart.Correlation()
+```
+
+f). Which link function would you choose for this data set? Explain your answer.
+
+### Investigation 2: Teacher training (optional)
+
+Researchers wanted to study the effects of additional teacher training on elementary student math scores. They selected four schools, and identified six teachers within each school to participate. Each teacher has a class of twenty students.
+
+- Four schools
+- Six teachers within each school
+- Twenty students per teacher
+
+For now, we'll ignore the school-level effect. That means that we have 24 teachers (4*6) to use in our experiment. All teachers will be implementing a new math curriculum at the beginning of the school year. Suppose the teachers are randomized to four different groups:
+
+1. Three days of professional development training
+2. Two days of professional development training
+3. One day of professional development training
+4. No additional professional development training (control)
+
+Is the number of professional development days a good predictor for the proportion of students passing the required math exam at the end of the year? The data set from this study is stored as `teacher_training.csv`.
+
+```{r}
+# Make sure to change this to your file directory
+teacher_training <- read.csv("teacher_training.csv")
+head(teacher_training)
+```
+
+a). Plot the number of professional development days (`PDT`) against the proportion of students passing the required math exam. Is there a relationship between professional development and a class's pass rate?
+
+b). Fit the following five models to predict pass rate based on professional development training.
+
+1) `model1: logit link`
+2) `model2: probit link`
+3) `model3: cauchit link`
+4) `model4: log link`
+5) `model5: cloglog link`
+
+For each model, record the coefficients and significant variables ($*$) in the table below. Code to implement `model1` is provided to serve as a guide.
+
+Model|(Intercept)|PDT
+----|------------|----|
+Model1|0.4866 $*$|1.1098 $*$
+Model2|  |  
+Model3|  |  
+Model4|  |  
+Model5|  |  
+
+```{r}
+model1 <- glm(prop ~ PDT, weights=n, data=teacher_training, family=binomial(link=logit))
+summary(model1)
+```
+
+c). Compare and contrast the model coefficients. Which models are similar, and which are different?
+
+d). For each model, calculate and record the AIC and results of the deviance test. Which link function provides a better fit?
+
+Model|AIC|Deviance p-value
+----|------------|--------------
+Model1|80.51159|0.3215861
+Model2|  |  
+Model3|  |  
+Model4|  |  
+Model5|  |  
+
+```{r}
+AIC(model1)
+1 - pchisq(model1$deviance, model1$df.residual)
+```
+
+e). Add the predicted values from each of the five models to your original data set. Calculate the correlation matrix - the correlation between all predicted values from the five models. How are the predictions from the five models related to each other?
+
+```{r, warning=FALSE}
+teacher_training <- teacher_training %>%
+  mutate(model1_pred = model1$fitted.values)
+cor(teacher_training)
+
+teacher_training %>% chart.Correlation()
+```
+
+f). Which link function would you choose for this data set? Explain your answer.

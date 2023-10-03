@@ -1,0 +1,59 @@
+---
+title: "Mini-Project-2"
+name: Emmanuel Rayappa
+date: "10-5-2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(robotstxt)
+library(rvest)
+library(tidyverse)
+library(RSelenium)
+library(RColorBrewer)
+library(lubridate)
+library(stringr)
+```
+
+## R Markdown
+Name: Emmanuel Rayappa
+Date: 10-5-2021
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+```{r}
+paths_allowed("https://www.pro-football-reference.com/leaders/pass_yds_single_season.htm") # checking to make sure that the website can have scrapping done on it. Since it return "True", this means the website can be scrapped.
+```
+
+## Seperating out the various elements of the table
+
+Here, we extract the data(all in one table) from the HTML of the page:
+
+```{r}
+page <- read_html("https://www.pro-football-reference.com/leaders/pass_yds_single_season.htm")
+
+table<- page %>%  # We mine the website specifically for the table
+  html_nodes("#pass_yds_leaders") %>%
+  html_table()
+
+nfl_pass_yards_leaders <- as.data.frame(table) # converting the table into a readable data set
+
+nfl_pass_yards_leaders$Year <- year(as.Date(as.character(nfl_pass_yards_leaders$Year), format = "%Y" )) #Converting the Year to a int. 
+
+pass_yards_leader_after_2015 <- nfl_pass_yards_leaders %>%
+  filter(Year >= 2015)
+
+pass_yards_leader_after_2015$Yds <- as.numeric(str_replace(pass_yards_leader_after_2015$Yds,',','')) #converting the years in the data to numbers. Will use it for plotting later.
+
+ggplot(pass_yards_leader_after_2015, aes(x = as.factor(Year), y = Yds)) + geom_violin(aes(fill = as.factor(Year)), draw_quantiles = c(.25, .50,.75))+xlab("Year")+ylab("Yards") + scale_color_manual(values = cols, aesthetics = c("colour")) 
+
+
+
+```
+
+Why this data? 
+
+I chose to analyze passing yards data because I wanted to figure out the range of passing yards in the modern NFL, where there are a lot of teams that like to run the ball (referred to as rushing)rather than pass, a trend that has come-up in the last 6 years. From what I have learned, passing still popular and it has not dropped dramatically despite rushing becoming more popular in today's NFL. As indicated by the data, there have been a few cases where players passed for 5000 yards or more in a season, which is a feat only a few can accomplish. I found this data to be interesting because I am starting to get into the game of Football and have wondered what kind of trends have emerged in the passing game since the popularity of rushing increased. 

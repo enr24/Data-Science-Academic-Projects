@@ -1,0 +1,204 @@
+---
+title: "Lab 10"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 366: Machine Learning'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+library(keras)
+library(tidyverse)
+library(caret)
+```
+
+Answer the questions below (use blockquotes by starting your line with ">" to denote your response). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your PDF/HTML file and upload to BlueLine.
+
+## Question 1
+
+"Vinho Verde" (Portuguese: "green wine") refers to a Portuguese style of wine that originated in the historic Minho province in the far north of the country. The name literally means "green wine," but translates as "young wine", with wine being released in 3-6 months after the grapes are harvested. They may be red, white, or rose and they are usually consumed soon after bottling.
+
+A group of researchers living in Guimaraes, Portugal used data mining to classify the quality of white and red Vinho Verde wines based on their chemical properties: acidity, sugar content, chlorides, sulfur dioxide, density, etc. The data sets `winequality-white.csv` and `winequality-red.csv`contain measurements on wine quality and other features.
+
+__Objective__: Build an appropriate neural network for predicting quality of white Vinho Verde wines.
+
+```{r}
+wine <- read.csv("winequality-white.csv", sep=";")
+```
+
+a) Create a data set for your input features and a data set for your output feature (wine quality), treating wine quality as a categorical variable. Your "y" data should be in the form of a one-hot encoded matrix.
+b)  Build a deep neural network. Your network should use:
+
+    1) 2-5 hidden layers
+    2) A suitable activation function for each layer
+    3) A suitable loss function in the compiler
+    4) A suitable batch size and number of epochs
+    5) A suitable cross-validation split
+    6) Stochastic gradient descent
+    
+```{r}
+wine = wine[complete.cases(wine),]
+output = to_categorical(wine$quality)
+head(output)
+input= wine %>% dplyr::select(-quality)
+input = scale(input)
+head(input)
+```
+
+
+For each of (1)-(6), justify your selections. How well does your model perform on the training data? 
+
+c) Modify your neural network to use a different optimization routine. Has the model's performance improved? Explain why or why not.
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+model = keras_model_sequential()%>% layer_dense(units = 10, input_shape = ncol(input)) %>%
+  layer_dense(units = 5, activation = "relu") %>%
+  layer_dense(units = 10, activation = "softmax") %>%
+  compile(loss = "categorical_crossentropy", optimizer = optimizer_sgd(),
+          metrics = c("accuracy"))
+
+fit = model %>%
+  fit(x = input, y = output, validation_split = 0.2)
+
+fit
+```
+
+
+d) Add batch normalization to your neural network. Has the performance improved? Explain why or why not.
+> The accuracy has improved as the batch size restricted how many repetitions could be run.
+
+```{r}
+model = keras_model_sequential()%>% layer_dense(units = 10, input_shape = ncol(input)) %>%
+  layer_dense(units = 5, activation = "relu") %>%
+  layer_dense(units = 10, activation = "softmax") %>%
+  compile(loss = "categorical_crossentropy", optimizer = optimizer_sgd(),
+          metrics = c("accuracy"))
+
+fit = model %>%
+  fit(x = input, y = output,epochs = 25, #<<
+      batch_size = 128, #<<
+      validation_split = 0.2)
+
+fit
+```
+
+
+e) How many parameters are in your final model?
+> 120
+
+```{r}
+summary(model)
+```
+
+
+_Hint:_ Use `summary(model)` in R.
+
+## Question 2 (complete by yourself)
+
+Now, select a simpler model. It can be any model we've used so far this semester (save for MARS, we already tried that on a previous lab) that is appropriate for predicting wine quality. 
+
+a) Which model have you selected? Justify your selection.
+I will be using a linear regression model as its one of the more commonly used models in machine learning. 
+
+b) Fit the model.
+```{r}
+library(caret)
+set.seed(366)
+trainID = createDataPartition(wine$quality, times = 1, p = 0.7, list = FALSE)
+Train = wine[trainID,]
+Test = wine[-trainID,]
+
+```
+
+c) Compare this model's performance to the neural network, using appropriate performance "metrics". 
+> Based on the RMSE, this model is 75% accurate. This is better than the mode that we use in question 1, which have accuracies of about 50%. However,the models that we use in question 3 are 95% accurate. 
+
+```{r}
+model_lda= train(quality~.,data = Train, method = "glm")
+model_lda
+```
+
+
+
+## Question 3 
+
+Do you still remember your project 1?
+
+What if we try the neural network on this data? 
+
+```{r}
+library(tidyverse)
+library(keras)
+
+shopping <- read.csv("online_shoppers_intention.csv")
+glimpse(shopping)
+
+table(shopping$Month)
+table(shopping$VisitorType)
+table(shopping$Weekend)
+```
+
+Before you fit a neural network or any other models, let's pre-processing the data. 
+
+```{r}
+shopping = shopping %>% mutate(New = ifelse(VisitorType == "New_Visitor", 1, 0),
+                               Weekend2 = ifelse(Weekend == TRUE, 1,0),
+                               Month2 = case_when(Month=="Jan" ~ 1,
+                                                 Month =="Feb" ~ 2,
+                                                 Month =="Mar" ~ 3,
+                                                 Month =="Apr" ~ 4,
+                                                 Month =="May" ~ 5,
+                                                 Month == "Jun" ~ 6,
+                                                 Month == "Jul" ~ 7,
+                                                 Month == "Aug" ~ 8,
+                                                 Month == "Sep" ~ 9,
+                                                 Month =="Oct" ~ 10,
+                                                 Month =="Nov" ~ 11,
+                                                 Month =="Dec" ~ 12) 
+                               )
+head(shopping)
+shopping = shopping[complete.cases(shopping),]
+output = to_categorical(shopping$Revenue)
+head(output)
+input = shopping %>% dplyr::select(-c(Revenue, Weekend, Month, VisitorType))
+input = scale(input)
+```
+
+Don't forget to improve the model. You could try:
+
+    - Adding additional hidden layers
+    - Changing the number of nodes in each hidden layer (except the final one - why?)
+    - Standardizing your input variables
+    - Changing the fit and/or optimizer
+    - Changing the activation functions
+    - Changing the number of epochs or the batch size
+    - Adding batch normalization and/or regularizationn
+
+```{r, message=FALSE, warning=FALSE}
+model2 = keras_model_sequential() %>%
+  layer_dense(units = 10, input_shape = ncol(input)) %>%
+  layer_dense(units = 5, activation = "relu") %>%
+  layer_dense(units = 2, activation = "sigmoid") %>%
+  compile(loss = "categorical_crossentropy",
+          optimizer = optimizer_rmsprop(), 
+          metric = c("accuracy"))
+
+fit = model2 %>%
+  fit(x = input,
+      y = output, 
+      validation_split = 0.3)
+fit
+```
+

@@ -1,0 +1,53 @@
+---
+title: "Lab 5"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output: pdf_document
+subtitle: 'MTH 362: Statistical Modeling'
+---
+
+For each distribution,
+
+1. Write the pdf in one parameter exponential form.
+2. Identify the canonical link function.
+3. Compute $\mu = -\frac{c'(\theta)}{b'(\theta)}$ and $\sigma^2 = \frac{b''(\theta)c'(\theta) - c''(\theta)b'(\theta)}{[b'(\theta)]^3}$ and compare with known $E[Y]$ and $Var[Y]$. 
+
+(a). Binary: Y = 1 for a success, 0 for a failure
+$$p(y) = p^y(1-p)^{(1-y)}$$
+
+\newpage
+
+(b). Exponential: Y = time spent waiting for the first event in a Poisson process with an average rate of $\lambda$ events per unit of time. 
+$$f(y) = \lambda e^{-\lambda y}$$
+
+\newpage
+
+(c). Gamma (for fixed r): Y = time spent waiting for the $r^{th}$ event in a Poisson process with an average rate of $\lambda$ events per unit of time. 
+$$f(y;\lambda) = \frac{\lambda^r}{\Gamma(r)} y^{r-1} e^{-\lambda y}$$
+
+\newpage
+
+(d). Geometric: Y = number of failures before hte first success in a Bernoulli process. 
+$$p(y) = (1-p)^yp$$
+
+\newpage
+
+(e). Normal (with fixed $\mu$ and can set $\mu = 0$ without loss of generality)
+$$f(y; \sigma) = \frac{1}{\sqrt{2\pi\sigma^2}} e^{-\frac{(y-\mu)^2}{2\sigma^2}}$$
+
+\newpage
+
+(f). Pareto (for fixed k): for $y \geq k; \theta \geq 1$
+$$f(y; \theta) = \frac{\theta k^{\theta}}{y^{(\theta+1)}}$$
+
+\newpage
+
+Questions to submit: 
+
+(g). Binomial (for fixed n): Y = number of successes in n independent, identical trials
+$$p(y) = {n \choose y}p^y(1-p)^{n-y}$$
+
+\newpage
+
+(h). Poisson: Y = number of events occurring in a given time (or space) when the average event rate is $\lambda$ per unit of time (or space). 
+$$P(Y = y) = \frac{e^{-\lambda}\lambda^y}{y!}$$

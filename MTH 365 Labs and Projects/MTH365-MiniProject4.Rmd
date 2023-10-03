@@ -1,0 +1,86 @@
+---
+title: "Mini-project 4"
+author: "Emmanuel Rayappa"
+date: "11/23/2021"
+output: pdf_document
+---
+
+Introduction: 
+
+In this mini-project, I am going to see if Alaska Airlines, one of America's top carrier really has a "young fleet", which is something that is used a frequent selling point. What makes this question more interesting is that Alaska Airlines bought Virgin America in February 2018 and acquired their Airbus aircraft. Now as of 2021, they only operate the Airbus A320 and A321 (A319's have been either scrapped,stored,or sold). Alaska also claimed that they are "Proudly all Boeing", which is something that obviously hasn't been true since their Virgin America Acquisition.
+
+South West Airlines is one of America's top Carrier and has a unique fleet because they only operate the Boeing 737, which is a strategy to cut costs on maintenance. They have a much larger fleet, but tend to stay cheap as they do not have AC Power or meal service. This could be because South West Airlines tends to have an older fleet and doesn't want to spend money on modernizing their fleets. Alaska Airlines on the other hand modernized their 737-700 Aircraft and have installed Power-Points on all of their mainline Aircraft and include Entertainment streamed to their device. I want to see if an older fleet and less Amenitites can lead to a lower rating for SouthWest Airlines or if a younger fleet for Alaska can lead to a lower rating for them?
+
+To do this first, we will use an Excel File with all the information on Alaska Airlines main-line fleet which consists of the aforementioned Airbus A320 and A321 that they acquired from Virgin America and their 737 Next Generation Family (737-700, 737-800, 737-900, 737-900ER (Extended Range)). We will also do the same with SouthWest Airlines Data.
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(robotstxt)
+library(rvest)
+library(tidyverse)
+library(RSelenium)
+library(RColorBrewer)
+library(lubridate)
+library(stringr)
+```
+First, we want to load the file into the environment, which involves using the Read.csv function.
+Our Data is from AirFleets.com and has 241 observations with 7 variables. The variables in the data Frame are: Registration, Aircraft.Type, Config (Short for configuration), Remark(is the plane in Storage or is it active), Fleet.Number, and Age. For our purposes, we will only focus on the Aircraft Type, and Age. The variables that carry more importance in this case 
+
+```{r}
+alaska_airlines_fleet_info <- read.csv("AlaskaAirlinesMainLineFleetInformation.csv")
+alaska_airlines_fleet_info_rev <- alaska_airlines_fleet_info[-c(3:6)]
+alaska_airlines_fleet_info_rev$AGE <- as.numeric(gsub(" Years", "",alaska_airlines_fleet_info_rev$AGE))
+alaska_airlines_fleet_info_rev <- na.omit(alaska_airlines_fleet_info_rev)
+head(alaska_airlines_fleet_info_rev)
+
+
+southwest_airlines_fleet_info <- read.csv("SouthWestAirlinesFleetInfo.csv")
+southwest_airlines_fleet_info_rev <- southwest_airlines_fleet_info[-c(3:6)]
+southwest_airlines_fleet_info_rev$AGE <- as.numeric(gsub(" Years", "",southwest_airlines_fleet_info_rev$AGE))
+southwest_airlines_fleet_info_rev <- na.omit(southwest_airlines_fleet_info_rev)
+head(southwest_airlines_fleet_info_rev)
+
+```
+Data Analysis:
+
+Now,that we have the information on both carrier's fleets, we can use a Principal Components Analysis (PCA) or a Linear Model. In this case, we have to use a linear model because a PCA requires all variables to be numerical, which is not true for this data set. So we can proceed by splitting the Data into Training and Testing data and then using a forest to test the accuracy and see if there is a relationship at all between the three variables of the data.
+
+```{r}
+
+set.seed(365)
+test_id_alaska <- sample(1:nrow(alaska_airlines_fleet_info_rev), size=round(0.50*nrow(alaska_airlines_fleet_info_rev)))
+TEST_alaska <- alaska_airlines_fleet_info_rev[test_id_alaska,]
+TRAIN_alaska <- alaska_airlines_fleet_info_rev[-test_id_alaska,]
+
+test_id_southwest <- sample(1:nrow(southwest_airlines_fleet_info_rev), size=round(0.50*nrow(southwest_airlines_fleet_info_rev)))
+TEST_southwest <- southwest_airlines_fleet_info_rev[test_id_southwest,]
+TRAIN_southwest <- southwest_airlines_fleet_info_rev[-test_id_southwest,]
+
+library(randomForest)
+set.seed(365)
+forest_alaska <- randomForest(AGE ~ REG+AIRCRAFT.TYPE,data=TRAIN_alaska, 
+                       ntree=201, mtry=3)
+
+forest_alaska
+
+forest_southwest <- randomForest(AGE ~ ï..REG +AIRCRAFT.TYPE,data=TRAIN_southwest, 
+                       ntree=201, mtry=3)
+
+forest_southwest
+
+```
+From the tests on on both carriers, we see that the prediction accuracy of the model is 96% for the Alaska Airlines data and 95% for the SouthWest training data. We can then use a box plot and compare the average age for the fleets. 
+
+```{r}
+ggplot(TRAIN_alaska, aes(y= AIRCRAFT.TYPE,x = AGE)) + geom_boxplot(aes(fill = AIRCRAFT.TYPE))
+ggplot(TRAIN_southwest, aes(y= AIRCRAFT.TYPE,x = AGE)) + geom_boxplot(aes(fill = AIRCRAFT.TYPE))
+```
+Conclusion:
+
+From these Plots, we can see that Despite operating fewer aircraft, SouthWest Airlines tends to have some aircraft that are older than 20 years and even close to 25 years. For Alaska Airlines, they tend to have a younger fleet with the oldest aircraft being no more than 22 years old.
+
+So we now know that SouthWest has older planes than Alaska, does it mean that Alaska Airlines actually has a better customer rating? To find out, we will be referring to the 2021 JD Power Customer Satisfaction score, which uses data of 2,309 participants to talk about their experiences with various Airlines in the United States. Then, they calculate a number on a 1,000 scale based off the responses. On this scale, Southwest Airlines Scored an 856/1000 while Alaska Airlines Scored an 835/1000. 
+
+Even though the Data we analyzed shows Alaska Airlines has a younger fleet, it doesn't prove that they have a high Customer Satisfaction rating than SouthWest Airlines. There could be other reason why people tend to be more satisfied With Southwest Airlines. Something that could explain the higher rating is that customers can check 2 bag free of cost at Southwest while at Alaska, customers must be in First Class to have 2 free checked bags, or pay $70 for their first two bags (30 and 40 dollar charges).
+
+Improvements:
+Some improvements that can be made to this project is the data set that I use. There was a lot of cleaning that I had to do on both sets and ultimately found that this took some time. If i use a data set where there isn't cases of "na" in it, then it can be analyzed more quickly and efficiently. I could also develop a deeper research with this data such as using the costs of maintenance or stocks as a factor in customer satisfaction.

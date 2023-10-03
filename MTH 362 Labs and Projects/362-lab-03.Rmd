@@ -1,0 +1,243 @@
+---
+title: "Lab 3"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 362: Statistical Modeling'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes to denote your answer by putting a ">" at the beginning of the line). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an HTML/PDF file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your HTML/PDF file and upload to BlueLine.
+
+*You can also submit a Word or PDF copy of your work if you prefer (you'll need a LaTeX compiler to create a PDF). If you go the Word/PDF route, please pay attention to page breaks in the compiled document, you may need to mess with the formatting options.*
+
+```{r, warning=FALSE, message=FALSE}
+library(fivethirtyeight)
+library(tidyverse)
+set.seed(362)
+
+# Make sure to change the file path if you need
+elephant <- read.csv("elephant.csv")
+```
+
+How does age affect male elephant mating patterns? An article by Poole (1989) investigated whether mating success in male elephants increases with age and whether there is a peak age for mating success. To address this question, the research team followed 41 elephants for one year and recorded both their ages and their number of matings. The data is found in `elephant.csv`, and the variables are:
+
+-   `MATINGS` = the number of matings in a given year
+-   `AGE` = the age of the elephant in years.
+
+## Question 1
+
+Create a histogram of MATINGS. Is there preliminary evidence that number of matings could be modeled as a Poisson response? Explain.
+
+The number of matings is a count and we see skewness in the histogram; so poisson is a better fit than normal in this case. 
+
+```{r}
+elephant %>% ggplot(aes(x = Matings)) + geom_histogram()
+```
+
+
+## Question 2
+
+Plot `MATINGS` by `AGE`. Add a least squares line. Is there evidence that modeling matings using a linear regression with age might not be appropriate? Explain.
+
+The fit is not too bad, but there is evidence of heavy variance within the data, which means that linear regression might not be the most appropriate for this data. 
+
+```{r}
+elephant %>% ggplot(aes(x = Age, y = Matings)) + geom_point() + geom_smooth(method = "lm")
+```
+
+
+## Question 3
+
+For each age, calculate the mean number of matings. Take the log of each mean and plot it by `AGE`.
+
+1.  What assumption can be assessed with this plot?
+
+Whether or not there is a linear relationship between the explanatory variables and log of the response variable.
+
+2.  Is there evidence of a quadratic trend on this plot?
+
+There is not clear evidence of a quadratic trend.
+
+```{r}
+groupdata = elephant %>% group_by(Age) %>% 
+  summarise(mean = mean(Matings))
+
+groupdata %>% ggplot(aes(x = Age, y = log(mean))) + geom_point() + geom_smooth(method = "lm")
+```
+
+## Question 4
+
+Fit a Poisson regression model with a linear term for `AGE`. Exponentiate and then interpret the coefficient for `AGE`.
+
+If the age increases by 1 unit (one year in this case), the number of matings will increase by 7%.
+
+```{r}
+model_pois = glm(Matings~Age, data = elephant, family = "poisson")
+summary(model_pois)
+
+exp(0.0689)
+```
+
+
+## Question 5
+
+Calculate a 95% confidence interval for the slope and interpret in context (you may want to exponentiate endpoints).
+
+We are 95% confident that the true percentage of change on mating numbers will be within 4.26% and 10.04%
+```{r}
+exp(confint(model_pois))
+
+```
+
+## Question 6
+
+Are the number of matings significantly related to age? Test with
+
+a)  a Wald test and
+The Wald test is in the summary table and since the p-value is small, we reject the null hypothesis and conclude that the number of matings is significantly related to age.  
+
+b)  a "drop in deviance" test.
+
+The "drop in deviance" test through the anova function has a small p-value, so we once again reject the null hypothesis and conclude that the poisson is different from the null model, this the number of mating is significantly related to the age.
+
+```{r}
+summary(model_pois)
+anova(model_pois, test = "Chisq")
+```
+
+
+## Question 7
+
+Add a quadratic term in `AGE` to determine whether there is a maximum age for the number of matings for elephants. Is a quadratic model preferred to a linear model? To investigate this question, use
+
+
+a)  a Wald test and
+Based on the summary table, the p-value for the quadratic term is large, thus there is no evidence where we can reject the null hypothesis, thus there is no need to input a quadratic term and no evidence to suggest there is a maximum age for the number of matings. 
+
+b)  a "drop in deviance" test.
+This test reveals that there is no significant difference between these two models because the p-value is large, thus we do not need to include a quadratic term.
+
+```{r}
+model_quad = glm(Matings~Age + I(Age^(2)), data = elephant, family = "poisson")
+summary(model_quad)
+
+anova(model_pois, model_quad, test = "Chisq")
+```
+
+
+## Question 8
+
+What can we say about the goodness of fit of the model with age as the sole predictor? Compare the residual deviance for the linear model to a $\chi^2$ distribution with the residual model degrees of freedom.
+
+If we use alpha = 0.05 as the boundary, the p-value is larger than alpha, then it means that it is a good fit. 
+
+```{r}
+1 - pchisq(model_pois$deviance, model_pois$df.residual)
+plot(model_pois, which = 1)
+
+```
+
+
+## Question 9 (Finish by yourself)
+
+A commonly used tool in statistics to learn more about the performance of a model is a __simulation study__. We use probability models to _simulate_ data that follows a pre-specified model. Then, we fit the model or technique we want to evaluate to the simulated data, and see how well it estimates the underlying parameters. The advantage of using a simulation study compared to testing a model on real data is that for real data, we don't know what the true parameters may be. But, if we simulate the data, we know what values were used to generate it.
+
+The code below generates data according to a Poisson regression model. Please randomly choose two values for $\beta_0$ and $\beta_1$. Modify your code, and simulate the data.
+
+```{r}
+beta0 <- 2
+beta1 <- 0.8
+n <- 100
+
+x <- runif(min=0, max=5, n=n)
+
+# This command rounds the simulated value of x to two decimal places
+x <- round(x, 2)
+
+eta <- beta0 + beta1*x
+lambda <- exp(eta)
+
+y <- rpois(lambda, n=n)
+
+data <- tibble(x, y)
+```
+
+1. Make a scatterplot of your data. Describe the relationship between $x$ and $y$.
+
+There is generally a strong positive correlation between x and y, which suggests that they are related in some manner. 
+
+```{r}
+data %>% ggplot(aes(x = x, y=y)) + geom_point() 
+```
+
+
+2. Fit and evaluate a simple linear regression model to predict $y$ based on $x$.
+
+```{r}
+model_lm2 = lm(y~x, data = elephant)
+summary(model_lm2)
+```
+
+
+    a) Do the estimated parameters come close to your $\beta_0$ and $\beta_1$?
+    - The estimated parameters come fairly close to the $\beta_0$ and $\beta_1$ that I set.
+    b) Comment on the fit of the model.
+    Geenrally, the model is a pretty good fit as we can explain roughly 80.4% of the variance in the data. 
+
+3. Fit and evaluate a Poisson regression model to predict $y$ based on $x$.
+
+```{r}
+model_pois2 = glm(y~x, data = elephant, family = "poisson")
+summary(model_pois2)
+```
+
+
+    a) Do the estimated parameters come close to your $\beta_0$ and $\beta_1$?
+    The estimated parameters are much closer to my $\beta_0$ and $\beta_1$ when comapred
+    with the previous model. 
+    b) Comment on the fit of the model.
+    This model tends to be a better fit as it is closer to the beta values that I set. 
+
+4. What differences are present in the `summary()` output for `lm()` v. `glm()`?
+
+The difference that is present in the summary for lm() and glm() is that lm() shows how much of the variance can be accounted for in the data while the glm() does not do this. 
+
+5. Calculate and interpret 95% confidence intervals for your model parameters using profile likelihood. Do your confidence intervals contain the "true" values of $\beta_0$ and $\beta_1$?
+For the poisson mode, we have 
+```{r}
+exp(confint(model_pois2))
+
+
+exp(confint(model_lm2))
+```
+
+
+6. Generate and examine residual plots for both the simple linear model and the Poisson regression model. Based on your plots, what patterns would you expect to see in a "correctly specified" Poisson regression model?
+
+For a correctly specified Poisson Regression model, I would expect to see a model that take a parabolic shape with a fairly tight correlation.
+
+```{r}
+par(mfrow = c(1,2))
+plot(model_pois2, which = c(1,2))
+
+par(mfrow = c(1,2))
+plot(model_lm2, which = c(1,2))
+
+```
+
