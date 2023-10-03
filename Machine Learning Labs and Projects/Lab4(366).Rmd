@@ -1,0 +1,422 @@
+---
+title: "Lab 4"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 366: Machine Learning'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes by starting your line with ">" to denote your response). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your PDF/HTML file and upload to BlueLine.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(caret)
+```
+
+## Ames housing data
+
+The Ames housing data set consists of 82 variables recorded for 2,930 properties listed for sale in Ames, Iowa. The data set is contained in the `AmesHousing` package in R. There are two versions of this data set, one that is already tidied (which we'll use for this assignment), and one with _missing data_.
+
+```{r}
+#install.packages('AmesHousing')
+library(AmesHousing)
+ames_data <- make_ames()
+```
+
+We'd like to build a model to predict a home's sale price(`Sale_Price`) based on the available listing information. But, there are some challenges. 
+
+### Question 1
+
+Write a pre-processing statement to center and scale your variables. Create a centered and scaled version of the training and testing data sets (70/30).
+
+```{r}
+set.seed(366)
+trainIndex = createDataPartition(ames_data$Sale_Price, p = 0.7, list = FALSE, times = 1)
+Train = ames_data[trainIndex,]
+Test = ames_data[-trainIndex,]
+
+preprocess = preProcess(ames_data, method = c("center", "scale"))
+TrainTransformed = predict(preprocess, Train)
+TestTransformed = predict(preprocess, Test)
+```
+
+
+### Question 2
+
+Build a multiple regression model to predict sale price using all available variables. Do you have any concerns or reservations about this model?
+> Due to the warning in the results, there are a lot of categorical variables in the data, thus the data is not large enough to fit all levels. Also, the linear model requires independence between variables. 
+
+```{r}
+model_lm = train(Sale_Price~., data = TrainTransformed, method = "lm")
+
+```
+
+
+### Question 3
+
+Calculate the RMSE, R-squared, and MAE for the training data and the testing data using the multiple regression model. What do these statistics tell you about the model's performance?
+> Generalyy, R2 has the highest accuracy followed by RSME and then MAE
+
+```{r}
+RMSE(predict(model_lm, TrainTransformed), TrainTransformed$Sale_Price)
+MAE(predict(model_lm, TrainTransformed), TrainTransformed$Sale_Price)
+R2(predict(model_lm, TrainTransformed), TrainTransformed$Sale_Price)
+
+RMSE(predict(model_lm, TestTransformed), TestTransformed$Sale_Price)
+MAE(predict(model_lm, TestTransformed), TestTransformed$Sale_Price)
+R2(predict(model_lm, TestTransformed), TestTransformed$Sale_Price)
+
+```
+
+
+### Question 4
+
+This analysis may be strengthened or improve by using shrinkage models. Why?
+
+> We have 81 variables, and not all of them may be related to the sales price. Using a shrinakge model, we can limit the number of vairables and get rid of categorical variables which can solve the issue of rank deficency. 
+
+### Question 5
+
+Fit a ridge regression model to this data set. Allow $\lambda$ to vary (Dr. SM's testing suggested a $\lambda < 1$ was optimal), and fix $\alpha$.
+
+```{r}
+alpha = 0
+lambda = seq(from = 0, to = 1, length = 11)
+grid = expand.grid(alpha, lambda)
+colnames(grid) = c("alpha", "lambda")
+
+model_ridge = train(Sale_Price~.,data = TrainTransformed, method = "glmnet", tuneGrid = grid)
+model_ridge
+```
+
+### Question 6
+
+Calculate the RMSE, R-squared, and MAE for the training data and the testing data using the tuned ridge regression model. What do these statistics tell you about the model's performance?
+
+```{r}
+RMSE(predict(model_ridge, TrainTransformed), TrainTransformed$Sale_Price)
+MAE(predict(model_ridge, TrainTransformed), TrainTransformed$Sale_Price)
+R2(predict(model_ridge, TrainTransformed), TrainTransformed$Sale_Price)
+
+RMSE(predict(model_ridge, TestTransformed), TestTransformed$Sale_Price)
+MAE(predict(model_ridge, TestTransformed), TestTransformed$Sale_Price)
+R2(predict(model_ridge, TestTransformed), TestTransformed$Sale_Price)
+```
+
+
+### Question 7
+
+Fit a lasso regression model to this data set. Allow $\lambda$ to vary (Dr. SM's testing suggested a $\lambda < 0.1$ was optimal), and fix $\alpha$.
+
+```{r}
+alpha = 1
+lambda = seq(from = 0, to = 0.1, length = 11)
+grid = expand.grid(alpha, lambda)
+colnames(grid) = c("alpha", "lambda")
+
+model_lasso = train(Sale_Price~.,data = TrainTransformed, method = "glmnet", tuneGrid = grid)
+model_lasso
+```
+
+
+### Question 8
+
+Calculate the RMSE, R-squared, and MAE for the training data and the testing data using the tuned lasso regression model. What do these statistics tell you about the model's performance?
+
+```{r}
+RMSE(predict(model_lasso, TrainTransformed), TrainTransformed$Sale_Price)
+MAE(predict(model_lasso, TrainTransformed), TrainTransformed$Sale_Price)
+R2(predict(model_lasso, TrainTransformed), TrainTransformed$Sale_Price)
+
+RMSE(predict(model_lasso, TestTransformed), TestTransformed$Sale_Price)
+MAE(predict(model_lasso, TestTransformed), TestTransformed$Sale_Price)
+R2(predict(model_lasso, TestTransformed), TestTransformed$Sale_Price)
+```
+
+
+### Question 9
+
+Finally, expand your net. Fit an elastic net regression model to this data set. Allow $\lambda$ and $\alpha$ to vary appropriately (use your previous findings to help build your tuning grid).
+
+```{r}
+alpha = seq(from = 0, to = 1, length = 11)
+lambda = seq(from = 0, to = 0.5, length = 51)
+grid = expand.grid(alpha, lambda)
+colnames(grid) = c("alpha", "lambda")
+
+model_net = train(Sale_Price~.,data = TrainTransformed, method = "glmnet", tuneGrid = grid)
+model_net
+```
+
+
+### Question 10
+
+Calculate the RMSE, R-squared, and MAE for the training data and the testing data using the tuned elastic net regression model. What do these statistics tell you about the model's performance?
+
+```{r}
+RMSE(predict(model_net, TrainTransformed), TrainTransformed$Sale_Price)
+MAE(predict(model_net, TrainTransformed), TrainTransformed$Sale_Price)
+R2(predict(model_net, TrainTransformed), TrainTransformed$Sale_Price)
+
+RMSE(predict(model_net, TestTransformed), TestTransformed$Sale_Price)
+MAE(predict(model_net, TestTransformed), TestTransformed$Sale_Price)
+R2(predict(model_net, TestTransformed), TestTransformed$Sale_Price)
+```
+
+### Question 11
+
+In R, the code below extracts the coefficients from each model and combines them into a single "tibble" (`tidyverse` for data frame). Make a plot of the coefficients from each model. What does this tell you about how the models are performing?
+
+```{r}
+Coefficients <- tibble(lm_coef = coef(model_lm$finalModel),
+                       ridge_coef = as.vector(coef(model_ridge$finalModel,
+        model_ridge$bestTune$lambda)), 
+        lasso_coef = as.vector(coef(model_lasso$finalModel,
+        model_lasso$bestTune$lambda)),
+        net_coef = as.vector(coef(model_net$finalModel,
+        model_net$bestTune$lambda)))
+
+head(Coefficients)
+
+
+```
+> Compared to the linear model, the coefficients in the ridge model have a much smaller scale, but all the variables are kept in the model. COmpared to Ridge mode, Lasso got rid of the majority of unecessary variables. Elastic net is between ridge and lasso, which gets rid of only some of the models. 
+
+## Green wine
+
+"Vinho Verde" (Portuguese: "green wine") refers to a Portuguese style of wine that originated in the historic Minho province in the far north of the country. The name literally means "green wine," but translates as "young wine", with wine being released in 3-6 months after the grapes are harvested. They may be red, white, or rose and they are usually consumed soon after bottling.
+
+A group of researchers living in Guimaraes, Portugal used data mining to classify the quality of white and red Vinho Verde wines based on their chemical properties: acidity, sugar content, chlorides, sulfur dioxide, density, etc. The data sets `winequality-white.csv` and `winequality-red.csv`contain measurements on wine quality and other features.
+
+```{r}
+wine <- read.csv("winequality-white.csv", sep=";")
+```
+
+### Question 1
+
+Build an appropriate testing and training split for predicting wine quality.
+
+```{r}
+set.seed(366)
+trainIndex2 = createDataPartition(wine$quality, p = 0.7, list = FALSE, times = 1)
+Train2 = wine[trainIndex2,]
+Test2 = wine[-trainIndex2,]
+```
+
+
+### Question 2
+
+Use a spline model with 3 knots to predict wine quality based on chemical properties. Evaluate your model's performance on the training and testing data.
+
+> Evaluating this mode, we can explain 100% of the variance (Indicated by the Multiple R-Sqaured Variable). This however is rather unrealistic.
+
+```{r}
+library(splines)
+model_spline = lm(quality~bs(fixed.acidity,df = 4, degree = 1) +
+                  bs(volatile.acidity,df = 4, degree = 1)+  
+                  bs(citric.acid,df = 4, degree = 1)+
+                  bs(residual.sugar,df = 4, degree = 1)+
+                  bs(chlorides,df = 4, degree = 1)+
+                  bs(free.sulfur.dioxide,df = 4, degree = 1)+
+                  bs(total.sulfur.dioxide,df = 4, degree = 1)+
+                  bs(density,df = 4, degree = 1)+
+                  bs(pH,df = 4, degree = 1)+  
+                  bs(sulphates,df = 4, degree = 1)+
+                  bs(alcohol,df = 4, degree = 1)+
+                  bs(quality,df = 4, degree = 1),
+                  data = Train2)
+summary(model_spline)
+
+```
+
+### Question 3
+
+Use `method=earth` in the `caret` library to fit a MARS model. What are the "optimal" parameters? Be sure to test a few values of each tuning parameter. 
+
+> For the tuning parameters, setting degree to 1:2 and nprune to 4:5 returned the best results.
+
+```{r}
+nprune = 4:5
+degree = 1:2
+grid = expand.grid(nprune, degree)
+colnames(grid) = c("nprune", "degree")
+model_mars = train(quality~.,data = Train2, method = "earth",tuneGrid = grid )
+summary(model_mars)
+```
+
+
+### Question 4
+
+Evaluate your optimal MARS model's performance on the training and testing data.
+
+```{r}
+RMSE(predict(model_mars, Train2), Train2$quality)
+MAE(predict(model_mars, Train2), Train2$quality)
+R2(predict(model_mars, Train2), Train2$quality)
+
+RMSE(predict(model_mars, Test2), Test2$quality)
+MAE(predict(model_mars, Test2), Test2$quality)
+R2(predict(model_mars, Test2), Test2$quality)
+
+```
+
+
+## Simulation problem (finish by yourself)
+
+Multivariate Adaptive Regression Splines (MARS) was first introduced in the _Annals of Statistics_ in March 1991 (citation below). In this article, Jerome Friedman introduced three data generating models that he used to illustrate the application of MARS. We'll use those same data models to explore spline models, MARS, and other regression techniques today.
+
+> Jerome H. Friedman. "Multivariate Adaptive Regression Splines." Ann. Statist. 19 (1) 1 - 67, March, 1991. https://doi.org/10.1214/aos/1176347963
+
+```{r}
+set.seed(366)
+library(mlbench)
+
+Problem <- as.data.frame(mlbench.friedman2(n=1000, sd = 1))
+head(Problem)
+```
+
+### Question 1
+
+Create a 70-30 training-testing balanced split.
+
+```{r}
+trainIndex3 = createDataPartition(Problem$y, p = 0.7, list = FALSE, times = 1)
+
+preprocess = preProcess(Problem, method = c("center", "scale"))
+Transformed = predict(preprocess, Problem)
+
+
+Train3 = Transformed[trainIndex3,]
+Test3 = Transformed[-trainIndex3,]
+```
+
+
+### Question 2
+Fit a multiple regression model. Save your estimated regression coefficients - which terms (if any) are "significant"? Make predictions on the testing data and save them.
+
+```{r}
+model_lm = train(y~., data = Train3, method = "lm")
+summary(model_lm)
+prediction_lm <- predict(model_lm, newdata = Test3)
+```
+
+
+### Question 3
+
+Fit a ridge regression model. Save your estimated regression coefficients, as well as your best $\lambda$. Make predictions on the testing data and save them.
+
+```{r}
+alpha = 0
+lambda = seq(from = 0, to = 1, length = 11)
+grid = expand.grid(alpha, lambda)
+colnames(grid) = c("alpha", "lambda")
+
+model_ridge = train(y~.,data = Train3, method = "glmnet", tuneGrid = grid)
+model_ridge
+
+ridge_prediction <-predict(model_ridge, newdata = Test3)
+
+```
+
+### Question 4
+
+Fit a lasso regression model. Save your estimated regression coefficients, as well as your best $\lambda$. Make predictions on the testing data and save them.
+
+
+```{r}
+alpha = 1
+lambda = seq(from = 0, to = 0.1, length = 11)
+grid = expand.grid(alpha, lambda)
+colnames(grid) = c("alpha", "lambda")
+
+model_lasso = train(y~.,data = Train3, method = "glmnet", tuneGrid = grid)
+model_lasso
+
+lasso_prediction <-predict(model_lasso, method = "glmnet", newdata = Test3)
+```
+
+
+### Question 5
+
+Fit a basic spline model (using the base R function from the notes). Does it make sense to record your estimated regression coefficients? Make predictions on the testing data and save them.
+
+```{r}
+library(splines)
+model_spline2 = lm(y~bs(x.1, df = 4, degree = 1)+ bs(x.2, df = 4, degree = 1) + bs(x.3, df = 4, degree = 1)+ bs(x.3, df = 4, degree = 1) + bs(x.4, df = 4, degree = 1), data = Train3)
+summary(model_spline2)
+spline_predict <- predict(model_spline2, newdata=Test3)
+```
+
+
+### Question 6
+
+Fit a MARS model. Does it make sense to record your estimated regression coefficients? Make predictions on the testing data and save them.
+
+> It doesn't make sens to record the estimated regression coefficients.
+
+```{r}
+nprune = 4:5
+degree = 1:2
+grid = expand.grid(nprune, degree)
+colnames(grid) = c("nprune", "degree")
+model_mars2 = train(y~.,data = Train3, method = "earth",tuneGrid = grid )
+summary(model_mars2)
+
+prediction_mars <- predict(model_mars2, newdata =  Test3)
+
+```
+
+
+### Question 7
+
+Plot your predicted values against the observed values for all five models. Calculate RMSE and R-squared for each one. Which one is the best? 
+
+> Between the various models, Ridge is the best one for RMSE. For R2, Mars was the best.
+
+```{r}
+Predictions <- tibble(prediction_lm = prediction_lm,
+                      ridge_prediction= ridge_prediction, 
+                      lasso_prediction = lasso_prediction,
+                      spline_predict = spline_predict,
+                      prediction_mars = prediction_mars,
+                      observed = Test3$y)
+Predictions %>% ggplot(aes(x = observed, y = prediction_lm)) + geom_point()
+Predictions %>% ggplot(aes(x = observed, y = ridge_prediction)) + geom_point()
+Predictions %>% ggplot(aes(x = observed, y = lasso_prediction)) + geom_point()
+Predictions %>% ggplot(aes(x = observed, y = spline_predict)) + geom_point()
+Predictions %>% ggplot(aes(x = observed, y = prediction_mars)) + geom_point()
+```
+
+```{r}
+RMSE(predict(model_mars2, Train3), Train3$y)
+R2(predict(model_mars2, Train3), Train3$y)
+
+RMSE(predict(model_spline2, Train3), Train3$y)
+R2(predict(model_spline2, Train3), Train3$y)
+
+RMSE(predict(model_lasso, Train3), Train3$y)
+R2(predict(model_lasso, Train3), Train3$y)
+
+RMSE(predict(model_ridge, Train3), Train3$y)
+R2(predict(model_ridge, Train3), Train3$y)
+
+RMSE(predict(model_lm, Train3), Train3$y)
+R2(predict(model_lm, Train3), Train3$y)
+```
+

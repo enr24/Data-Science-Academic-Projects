@@ -1,0 +1,416 @@
+---
+title: "Lab 7"
+author: "Emmanuel Rayappa"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 366: Machine Learning'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes by starting your line with ">" to denote your response). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your PDF/HTML file and upload to BlueLine.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+```
+
+
+## Question 1
+
+The spiral isn't the only... interesting... classification problem in the `mlbench` library. One of my personal favorites is the `smiley`.
+
+```{r}
+library(tidyverse)
+library(mlbench)
+
+smiley <- mlbench.smiley(n=500, sd1 = 0.1, sd2 = 0.05)
+
+smiley_data <- as.data.frame(cbind(smiley$x, 
+                                   smiley$class))
+colnames(smiley_data) <- c('x1', 'x2', 'class')
+
+smiley_data <- smiley_data %>% 
+  mutate(nose = ifelse(class==3, 'yes', 'no')) %>%
+  mutate(left_eye = ifelse(class==1, 'yes', 'no'))
+
+head(smiley_data)
+
+p1 <- smiley_data %>% ggplot(aes(x=x1, y=x2)) + geom_point(aes(col=class))
+p2 <- smiley_data %>% ggplot(aes(x=x1, y=x2)) + geom_point(aes(col=nose))
+
+library(patchwork) 
+
+p1 + p2
+```
+
+Clearly there are some interesting elements in this data set! We can use this data set to test how well different support vector machine kernel choices can distinguish non-linear patterns, like finding a "nose".
+
+a) The code chunk below fits a linear support vector machine to the smiley data, and plots the classification boundary. How well does the linear model work?
+
+> Based on the model plot, we don't see a linear trend whatsoever, so we can conclude that the linear model won't work. 
+
+```{r}
+library(caret)
+model1 <- train(nose ~ x1 + x2,
+                data = smiley_data, 
+                method = "svmLinear")
+
+n_breaks <- 100
+
+PredA <- seq(from = -1.5, to = 1.5, length=n_breaks)
+PredB <- seq(from = -1.5, to = 1.5, length=n_breaks)
+
+Grid <- expand.grid(x1 = PredA, x2 = PredB)
+
+pred <- predict(model1, Grid)
+
+Grid %>% mutate(pred=pred) %>% 
+  ggplot(aes(x = x1, y = x2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=smiley_data, 
+             aes(x=x1, y=x2, col=nose))
+```
+
+b) Select two other kernel methods. Can you find one that is able to suitably distinguish the nose? Describe each method, and when it should/should not be used (you may need to do some research on your own.)
+
+```{r}
+library(caret)
+model2 <- train(nose ~ x1 + x2,
+                data = smiley_data, 
+                method = "svmPoly")
+
+n_breaks <- 100
+
+PredA <- seq(from = -1.5, to = 1.5, length=n_breaks)
+PredB <- seq(from = -1.5, to = 1.5, length=n_breaks)
+
+Grid <- expand.grid(x1 = PredA, x2 = PredB)
+
+pred <- predict(model2, Grid)
+
+Grid %>% mutate(pred=pred) %>% 
+  ggplot(aes(x = x1, y = x2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=smiley_data, 
+             aes(x=x1, y=x2, col=nose))
+```
+
+```{r}
+library(caret)
+model3 <- train(nose ~ x1 + x2,
+                data = smiley_data, 
+                method = "svmRadial")
+
+n_breaks <- 100
+
+PredA <- seq(from = -1.5, to = 1.5, length=n_breaks)
+PredB <- seq(from = -1.5, to = 1.5, length=n_breaks)
+
+Grid <- expand.grid(x1 = PredA, x2 = PredB)
+
+pred <- predict(model3, Grid)
+
+Grid %>% mutate(pred=pred) %>% 
+  ggplot(aes(x = x1, y = x2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=smiley_data, 
+             aes(x=x1, y=x2, col=nose))
+```
+
+
+- https://topepo.github.io/caret/train-models-by-tag.html#support-vector-machines
+
+
+## Question 2 (Complete by yourself)
+
+Use the same three methods you selected in Question 1 to identify the left eye in the picture. Is this an easier task? Explain why or why not.
+
+> This is just as easy to program as the previous problem. From the results of the graphs for each kernel, the svmPoly and the svmLinear look the exact same, which means that they probably have the same fit, which is good in their cases. 
+
+```{r}
+library(caret)
+model <- train(left_eye ~ x1 + x2,
+                data = smiley_data, 
+                method = "svmPoly")
+
+n_breaks <- 100
+
+PredA <- seq(from = -1.5, to = 1.5, length=n_breaks)
+PredB <- seq(from = -1.5, to = 1.5, length=n_breaks)
+
+Grid <- expand.grid(x1 = PredA, x2 = PredB)
+
+pred <- predict(model, Grid)
+
+Grid %>% mutate(pred=pred) %>% 
+  ggplot(aes(x = x1, y = x2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=smiley_data, 
+             aes(x=x1, y=x2, col=nose))
+```
+
+```{r}
+model_1 <- train(left_eye ~ x1 + x2,
+                data = smiley_data, 
+                method = "svmRadial")
+
+n_breaks <- 100
+
+PredA <- seq(from = -1.5, to = 1.5, length=n_breaks)
+PredB <- seq(from = -1.5, to = 1.5, length=n_breaks)
+
+Grid <- expand.grid(x1 = PredA, x2 = PredB)
+
+pred <- predict(model_1, Grid)
+
+Grid %>% mutate(pred=pred) %>% 
+  ggplot(aes(x = x1, y = x2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=smiley_data, 
+             aes(x=x1, y=x2, col=nose))
+```
+
+```{r}
+model_2 <- train(left_eye ~ x1 + x2,
+                data = smiley_data, 
+                method = "svmLinear")
+
+n_breaks <- 100
+
+PredA <- seq(from = -1.5, to = 1.5, length=n_breaks)
+PredB <- seq(from = -1.5, to = 1.5, length=n_breaks)
+
+Grid <- expand.grid(x1 = PredA, x2 = PredB)
+
+pred <- predict(model_2, Grid)
+
+Grid %>% mutate(pred=pred) %>% 
+  ggplot(aes(x = x1, y = x2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=smiley_data, 
+             aes(x=x1, y=x2, col=nose))
+```
+
+
+## Question 3
+
+This week we introduced support vector machines: models for placing decision boundaries in a "flexible" way. In today's lab we'll explore different kernel methods, and how they perform on a _benchmarking_ problem.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(caret)
+library(mlbench)
+library(patchwork)
+
+Problem1 <- as.data.frame(mlbench.xor(n=2000, d=2))
+p1 <- Problem1 %>% ggplot(aes(x=x.1, y=x.2)) +
+  geom_point(aes(col=classes, pch=classes)) + 
+  labs(title='Problem 1')
+
+Problem2 <- as.data.frame(mlbench.simplex(n=2000, d=3))
+p2 <- Problem2 %>% ggplot(aes(x=x.1, y=x.2)) +
+  geom_point(aes(col=classes, pch=classes)) + 
+  labs(title='Problem 2')
+
+Problem3 <- as.data.frame(mlbench.spirals(n=2000, cycles=2, sd=0.05))
+p3 <- Problem3 %>% ggplot(aes(x=x.1, y=x.2)) +
+  geom_point(aes(col=classes, pch=classes)) + 
+  labs(title='Problem 3')
+
+Problem4 <- as.data.frame(mlbench.threenorm(n=2000, d=2))
+p4 <- Problem4 %>% ggplot(aes(x=x.1, y=x.2)) +
+  geom_point(aes(col=classes, pch=classes)) + 
+  labs(title='Problem 4')
+
+(p1+p2)/(p3+p4)
+```
+
+Choose one of the problems and complete following steps. 
+
+1. Create a 70-30 training-testing balanced split.
+2. Fit each of the support vector machines listed below to your data. 
+3. Plot the decision boundary for each fitted SVM.
+4. Calculate the accuracy on the testing data for each fitted SVM.
+5. Which of the three SVMs you tried is "best" for your data? Explain your reasoning.
+
+### Problem 3
+
+```{r}
+trainId = createDataPartition(Problem3$classes, p = 0.7, times = 1, list = FALSE)
+train = Problem3[trainId,]
+test = Problem3[-trainId,]
+```
+
+
+```{r}
+model4 = train(classes ~x.1 + x.2, data = train, method = "svmLinear")
+model5 = train(classes ~x.1 + x.2, data = train, method = "svmPoly")
+model6 = train(classes ~x.1 + x.2, data = train, method = "svmRadial")
+
+```
+
+
+```{r}
+n_breaks <- 100
+
+PredA <- seq(from = -2, to = 2, length=n_breaks)
+PredB <- seq(from = -2, to = 2, length=n_breaks)
+
+Grid <- expand.grid(x.1 = PredA, x.2 = PredB)
+
+pred1 <- predict(model4, Grid)
+pred2 <- predict(model5, Grid)
+pred3 <- predict(model6, Grid)
+
+
+Grid %>% mutate(pred=pred1) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train, 
+             aes(x=x.1, y=x.2, col=classes))
+
+Grid %>% mutate(pred=pred2) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train, 
+             aes(x=x.1, y=x.2, col=classes))
+
+Grid %>% mutate(pred=pred3) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train, 
+             aes(x=x.1, y=x.2, col=classes))
+```
+
+> Based on the confusion matrix, the SVMRadial method is the best. 
+
+```{r}
+confusionMatrix(predict(model4, newdata = test), test$classes)
+confusionMatrix(predict(model5, newdata = test), test$classes)
+confusionMatrix(predict(model6, newdata = test), test$classes)
+```
+### Problem 4
+
+```{r}
+trainId2 = createDataPartition(Problem4$classes, p = 0.7, times = 1, list = FALSE)
+train2 = Problem4[trainId,]
+test2 = Problem4[-trainId,]
+```
+
+```{r}
+model7 = train(classes ~x.1 + x.2, data = train2, method = "svmLinear")
+model8 = train(classes ~x.1 + x.2, data = train2, method = "svmPoly")
+model9 = train(classes ~x.1 + x.2, data = train2, method = "svmRadial")
+```
+
+```{r}
+n_breaks <- 100
+
+PredA <- seq(from = -2, to = 2, length=n_breaks)
+PredB <- seq(from = -2, to = 2, length=n_breaks)
+
+Grid <- expand.grid(x.1 = PredA, x.2 = PredB)
+
+pred4 <- predict(model7, Grid)
+pred5 <- predict(model8, Grid)
+pred6 <- predict(model9, Grid)
+
+
+Grid %>% mutate(pred=pred4) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train2, 
+             aes(x=x.1, y=x.2, col=classes))
+
+Grid %>% mutate(pred=pred5) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train2, 
+             aes(x=x.1, y=x.2, col=classes))
+
+Grid %>% mutate(pred=pred6) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train2, 
+             aes(x=x.1, y=x.2, col=classes))
+```
+> The accuracy between the svmPoly and svmRadial is very close to the point that you could use either of the two as a final model. 
+
+```{r}
+confusionMatrix(predict(model7, newdata = test2), test2$classes)
+confusionMatrix(predict(model8, newdata = test2), test2$classes)
+confusionMatrix(predict(model9, newdata = test2), test2$classes)
+```
+# Problem 1
+
+```{r}
+trainId3 = createDataPartition(Problem1$classes, p = 0.7, times = 1, list = FALSE)
+train3 = Problem1[trainId3,]
+test3 = Problem1[-trainId3,]
+```
+
+```{r}
+model10 = train(classes ~x.1 + x.2, data = train3, method = "svmLinear")
+model11 = train(classes ~x.1 + x.2, data = train3, method = "svmPoly")
+model12= train(classes ~x.1 + x.2, data = train3, method = "svmRadial")
+```
+
+```{r}
+n_breaks <- 100
+
+PredA <- seq(from = -2, to = 2, length=n_breaks)
+PredB <- seq(from = -2, to = 2, length=n_breaks)
+
+Grid <- expand.grid(x.1 = PredA, x.2 = PredB)
+
+pred7 <- predict(model10, Grid)
+pred8 <- predict(model11, Grid)
+pred9 <- predict(model12, Grid)
+
+
+Grid %>% mutate(pred=pred7) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train3, 
+             aes(x=x.1, y=x.2, col=classes))
+
+Grid %>% mutate(pred=pred8) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train3, 
+             aes(x=x.1, y=x.2, col=classes))
+
+Grid %>% mutate(pred=pred9) %>% 
+  ggplot(aes(x = x.1, y = x.2)) +
+  geom_tile(aes(fill = pred), alpha=0.25) + 
+  geom_point(data=train3, 
+             aes(x=x.1, y=x.2, col=classes))
+```
+> Between the three methods, the svmRadial has the best accuracy.
+
+```{r}
+confusionMatrix(predict(model10, newdata = test3), test3$classes)
+confusionMatrix(predict(model11, newdata = test3), test3$classes)
+confusionMatrix(predict(model12, newdata = test3), test3$classes)
+```
+
+Model|Method
+---|---
+Linear SVM|`method = "svmLinear"`
+SVM with polynomial kernel|`method = "svmPoly"`
+SVM with radial basis kernel|`method = "svmRadial"`
+

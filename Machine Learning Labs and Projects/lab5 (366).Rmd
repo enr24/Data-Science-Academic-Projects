@@ -1,0 +1,268 @@
+---
+title: "Lab 5"
+author: "Your Name Here"
+date: "Updated `r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cosmo
+    code_download: yes
+subtitle: 'MTH 366: Machine Learning'
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+Answer the questions below (use blockquotes by starting your line with ">" to denote your response). When you're finished:
+
+1.  Change your name in the "author:" space at the top of this document.
+2.  Click the "Knit" button at the top to create an PDF/HTML file with your answers.
+3.  Review your answers, make any changes as necessary, and re-"Knit".
+4.  Save your PDF/HTML file and upload to BlueLine.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(caret)
+```
+
+## Question 1 (finish part h and i by yourself)
+
+In class, we used the Ames housing data set to explore different options for feature engineering. For this assignment, we'll use another data set that we have used in the class, which is the "Boston Housing" data set. 
+
+Variables in this data set include:
+
+Variable|Description
+-----|-----
+`crim`| per capita crime rate by town
+`zn`| proportion of residential land zoned for lots over 25,000 sq.ft
+`indus`| proportion of non-retail business acres per town
+`chas`| Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)
+`nox`| nitric oxides concentration (parts per 10 million)
+`rm`| average number of rooms per dwelling
+`age`| proportion of owner-occupied units built prior to 1940
+`dis`| weighted distances to five Boston employment centres
+`rad`| index of accessibility to radial highways
+`tax`| full-value property-tax rate per USD 10,000
+`ptratio`| pupil-teacher ratio by town
+`b`| 1000(B − 0.63)2 where B is the proportion of blacks by town
+`lstat`| percentage of lower status of the population
+`medv`| median value of owner-occupied homes in USD 1000’s
+
+Our target output variable is `medv` median value of owner-occupied homes in thousands of dollars. (Note: This data was first collected in the late 1970s... so prices will not reflect today's housing prices.)
+
+```{r}
+library(mlbench)
+data(BostonHousing)
+head(BostonHousing)
+```
+
+a) Start with a simple model. Use a 70-30% split to create a training and testing data. Using the training data, build a multiple regression model to predict `medv` based on all possible inputs. Comment on the model's performance on _both_ the training and testing data. 
+
+> The Train data does not perform as well as the test Data. 
+
+
+```{r}
+set.seed(366)
+
+trainIndex = createDataPartition(BostonHousing$medv, p = 0.7, times = 1, list = FALSE)
+
+Train = BostonHousing[trainIndex,]
+Test = BostonHousing[-trainIndex,]
+
+model = train(medv~., data = Train, method = "lm")
+model
+
+postResample(pred = predict(model, Test), obs = Test$medv)
+```
+
+b) Let's examine the output variable: `medv`. Is any _target engineering_ necessary with this data set? 
+
+> No target Engineering is needed.
+
+```{r, message=FALSE, warning=FALSE}
+Train %>% ggplot(aes(x = medv)) + geom_histogram()
+```
+
+c) Write a "recipe" to transform the output variable using a log transformation. Re-fit the model using the log-transformed data. Comment on the fit of the new model.
+
+> Because of a smaller RMSE and MAE, the tranformation does make a difference.
+
+```{r}
+library(recipes)
+
+
+recipe_log = recipe(medv~., data = Train) %>%
+  step_log(all_outcomes())
+
+recipe_log
+
+model_log = train(recipe_log, data = Train, method = "lm")
+
+postResample(pred = predict(model_log, Train), obs = log(Train$medv))
+postResample(pred = predict(model_log, Test), obs = log(Test$medv))
+```
+
+d) Write a "recipe" to transform the output variable using a Box-Cox transformation. Re-fit the model using the Box-Cox-transformed data. Comment on the fit of the new model.
+
+> The RMSE of the new model is samll, which means that the transformation does make a difference.
+
+```{r}
+recipe_bc = recipe(medv~., data = Train) %>% 
+  step_BoxCox(all_outcomes())
+recipe_bc_trained = prep(recipe_bc, training = Train, retain = TRUE)
+
+model_bc = train(recipe_bc_trained, data = Train, method = "lm")
+model_bc
+
+train_bake = bake(recipe_bc_trained, new_data =Train)
+postResample(pred = predict(model_log, Test), obs = train_bake$medv)
+
+test_bake = bake(recipe_bc_trained, new_data =Test)
+postResample(pred = predict(model_bc, Test), obs = test_bake$medv)
+
+
+```
+
+e)  Which approach do you prefer based on your findings: no feature engineering, feature engineering using a log transformation, or feature engineering using a Box-Cox transformation? Explain your reasoning.
+
+> The log transformation is a better one with the lowest RMSE
+
+f) Is missing data a problem with the Boston housing data set? Explain why or why not.
+
+> No missing data isn't an issue because by cleaning it, we arent losing any valuable data. 
+
+```{r}
+library(visdat)
+vis_miss(BostonHousing, cluster = TRUE) + coord_flip()
+```
+
+
+g)  We have 13 input variables - should any of them be removed or dropped? Explain why or why not.
+
+> We shouldn't have to drop any of the variable because there are no cases of missing data.
+
+```{r}
+nearZeroVar(BostonHousing, saveMetrics = TRUE)
+```
+
+
+h) Will a MARS model improve on the multiple linear regression approach? Fit the MARS model, using the feature engineering approach you chose previously, and comment on the fit.
+
+> The MARS model using featured engineering does make a difference as indicated by the small values for RMSE.However, the Log model is still the best based of the numbers (RMSE,Rsquared,MAE: 0.4208997 0.7617631 0.2885685. Log). For the MARS, the numbers are RMSE,Rsquared,MAE: 0.3563070 0.8286350 0.2532713 (In order)
+
+```{r, warning = FALSE}
+recipe_bc_2 = recipe(medv~., data = Train) %>% 
+  step_BoxCox(all_outcomes())
+recipe_bc_trained_2 = prep(recipe_bc, training = Train, retain = TRUE)
+
+model_bc_2 = train(recipe_bc_trained_2, data = Train, method = "earth")
+model_bc_2
+
+train_bake_2 = bake(recipe_bc_trained_2, new_data =Train)
+postResample(pred = predict(model_log, Test), obs = train_bake$medv)
+
+test_bake_2 = bake(recipe_bc_trained_2, new_data =Test)
+postResample(pred = predict(model_bc, Test), obs = test_bake$medv)
+
+
+```
+
+i) Plot the predictions from the MARS model. Use distance to the nearest employment center as your x-axis. If you used any feature engineering on medv, make sure to adjust your plotting axis. Would you recommend using the MARS model based on the plot? Explain why or why not.
+
+> Based on the plot, the predictions are not as accurate as the observed values based on the fact that the points on the plot are very loose. If this were the case, the points would not appear to be as spread out as they appear.
+
+```{r}
+nprune = 5:10
+degree = 1:4
+grid = expand.grid(nprune, degree)
+colnames(grid) = c("nprune", "degree")
+model_mars = train(medv~.,data = Train, method = "earth",tuneGrid = grid )
+summary(model_mars)
+
+prediction_mars <- predict(model_mars, data =  Train)
+
+Predictions <- tibble(prediction = prediction_mars, observed = Train)
+
+Train %>% ggplot(aes(x = dis,y = prediction_mars)) + geom_point()
+```
+
+## Question 2
+
+We used the `AirQuality` data set to illustrate multiple linear regression. This data had a _huge_ problem: missing data.
+
+```{r}
+air = read.csv("AirQualityUCI.csv")
+head(air)
+```
+
+
+a) You should get an error if you attempt to build a _balanced_ training and testing data set using `caret`. Try it, and explain the error.
+
+> The error message indicates that the response variable has missing data. 
+
+```{r}
+#trainIndex = createDataPartition(air$HourlyCO, p = 0.7, time = 1, list = FALSE) 
+
+```
+
+b) Build an _unbalanced_ training and testing data set using a suitable split. Why will this method work? Remove `Date` and `Time` from your training and testing data. 
+
+```{r}
+air = air %>% select(-Date, -Time, -X, -X.1, -X.2)
+head(air)
+
+sampleID = sample(1:nrow(air),floor(0.7 *nrow(air)))
+Train2 = air[sampleID,]
+Test2 = air[-sampleID,]
+
+
+```
+
+c)  Make a plot of the missing values in your data. Be sure to remove the "extra columns" if you haven't already. How could we explain the missingness?
+
+> Comapred to the Boston Housing Data Set, we see that there is more missing data, especially with the variable NHMC, which has 90.35% of it's observations missing. 
+
+```{r}
+vis_miss(air, cluster = TRUE) + coord_flip()
+```
+
+d) Use imputation to replace the missing values with the _median_ value. Use the newly created data to fit and assess a multiple regression model for predicting hourly CO.
+
+```{r}
+recipe2 = recipe(HourlyCO~., data = Train2) %>% step_medianimpute(all_outcomes()) %>% step_medianimpute(all_predictors())
+
+recipe2
+
+model2 = train(recipe2, data = Train2, method = "lm")
+model2
+
+postResample(pred = predict(model2, Test2),
+             obs = Test2$HourlyCO)
+
+recipe_train2 = prep(recipe2, training = Train2, retain = TRUE)
+test2_bake = bake(recipe_train2, new_data = Test2)
+
+postResample(pred = predict(model2, Test2),
+             obs = test2_bake$HourlyCO)
+```
+
+e) Compare this to the model fit _without_ imputation (remove NAs from your training data before fitting the model). Have the predictions on the training data improved?
+
+```{r}
+Train_na = Train2[complete.cases(Train2),]
+Test_na = Test2[complete.cases(Test2),]
+
+model_na = train(HourlyCO~., data = Train_na, method = "lm")
+model_na
+
+postResample(pred = predict(model_na, Test_na),
+             obs = Test_na$HourlyCO)
+```
+
+f) Which model would you prefer in practice? Consider both model performance and sample size in your reasoning. 
+
+> In practice, I would prefer the model with out imputations because there is less observations and the RMSE is better due to all cases of NA being absent. Removing the NA Values however causes 90% of the data is removed. We probably don't want to remove 90% of the data as this make the model fit only the best data, which isn't good practice. We should use imputations as oposed to removing data. 
