@@ -1,0 +1,187 @@
+---
+title: "MTH 366 Project 3"
+author: "Emmanuel Rayappa"
+date: "Updated r Sys.Date()"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE,echo=FALSE,message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(factoextra)
+library(AER)
+library(dplyr)
+library(rpart)
+library(rattle)
+library(earth)
+```
+
+## Introduction
+Music has long been viewed as a way for people to enjoy parties, social events, or even as a way of concentrating while they work. There are many popular music streamers like Apple Music, Pandora, Prime, and Spotify. Between these services, Spotify has become a very popular option as it has a variety of music from the Baroque era all the way to 2022. At the end of every year, spotify has a countdown of the top 100 songs that were streamed for the calendar year. This data is from Kaggle and has information on the songs like what year they came out,the name of the song,the year it was added, its run time (in seconds) and many more. What we want to focus on in particular is what influences the popularity and whether or not we conduct a supervised or unsupervised approach?
+
+## Variables in the Dataset
+This data set has 1000 observations on 17 variables. The variables in this data set are as follows. 
+title - Song's Title
+artist - Song's artist
+genre - Genre of song
+year released - Year the song was released
+added - Year song was added to Spotify's Top Hits playlist
+bpm	(Beats Per Minute) - The tempo of the song
+nrgy(Energy) - How energetic the song is
+dnce	(Danceability) - How easy it is to dance to the song
+dB	(Decibel) - How loud the song is
+live - How likely the song is a live recording
+val- 	How positive the mood of the song is
+dur	- Duration of the song
+acous - 	How acoustic the song is
+spch - The more the song is focused on spoken word
+pop - Popularity of the song (not a ranking)
+top year - Year the song was a top hit
+artist type - Tells if artist is solo, duo, trio, or a band
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+spotify_data <- read.csv("SpotifyTop100Songs.csv")
+spotify_data$added <- substr(spotify_data$added, 1,4)
+spotify_data$added <- as.integer(spotify_data$added)
+names(spotify_data)[1] <- 'title'
+head(spotify_data)
+```
+## EDA
+To see what our data look like, we can conduct some Exploratory Data Analysis on some of the variables of interest.
+We can look at the average release year of the songs with a box plot. From the results of the box-plot, we see that on average,songs that made the Spotify top 100 were released in 2015 and there are many others that were released later or earlier. There is one outlier that is just before the year 1980 and this could become important in our analysis later on.
+
+We can also look at the types of artists that are on this list by using a bar-plot to see if the records have more solo songs or duos. From the bar plot, we see that the majority of the artists that make the top 100 in this data are primarily solo. There are a few bands and duos, and very few trios.
+
+We can also look at the noise level
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+spotify_data %>% ggplot(aes(y = year.released))+ labs(title = "Release Year")+ geom_boxplot(fill = "blue") 
+spotify_data %>% ggplot(aes(x = artist.type))+ labs(title = "Artist Type")+geom_bar(aes(fill = artist.type))
+spotify_data %>% ggplot(aes(y = dB))+ labs(title = "Noise level (in decibels)")+ geom_boxplot(fill = "green")
+```
+## Supervised or unsupervised
+Supervised and unsupervised learning have their advantages and disadvantages to them. Supervised learning has the algorithm that we have built with labeled data for the algorithm to work with and split data and make calculations. Unsupervised learning is the opposite as we do not label the data for the algorithm to work with, split into test and train, and make calculations. In our case, we can run either approach and see which one is the best.
+
+
+## PCA (unsupervised)
+Conducting a PCA falls under the category of unsupervised learning. What this test does is that it looks at how closely related variables among each other are. In order for us to be able to conduct a PCA test, we much have a proportion of less than 1 and be no greater than 1. To check the proportion, we can call for the pr-comp function to be used, which makes the PCA for analysis. The summary function tells us the amount of variation explained by each principle component. We specifically want to know how much variation is explained for every Principal Component. 
+
+However, we find that the summary function is very difficult to read due to the amount of data in it. To resolve this, we can call for the fviz_eig function to make a plot which shows how much variation is explained in one principal component. In this case, we find that one principal component can explain 22.4% of the variance in the data.
+
+The other way we can work with the PCA is with a direction plot. A direction plot can help us find variables that are in the first two components. From the results of this, we find that the variables that are in the firs two components are top.year (year the song was #1 on spotify) and year released(year that the song came out).
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+spotify_data_pca= subset(spotify_data, select = -c(title,artist,top.genre,artist.type))
+head(spotify_data_pca)
+data_pca = prcomp(spotify_data_pca, center = TRUE, scale = TRUE)
+summary(data_pca)
+fviz_eig(data_pca, addlabels = TRUE)
+fviz_pca_var(data_pca, col.var = "contrib")
+```
+## Which PCA's are important
+We can run a rotation chart to calculate which variables are important in the PCA's. From running this, we find that the most important variables from the first two components are pop and top year (based on the difference between the values in PC1 and PC2) 
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+data_pca$rotation[,1:2]
+```
+
+
+## Logistic (Superivsed approach)
+With Logistic regression, we can split the data into testing and training data, but we need to remember that what we can do with it will be limited depending on the type of response variable that we choose. In this case, we will be using the popularity variable (pop) as the response variable, so we need to be weary that what we can do with it will be limited. 
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+set.seed(366)
+trainIndex = createDataPartition(spotify_data$pop, p = 0.5, list = FALSE, times = 1)
+Train = spotify_data[trainIndex,]
+Test = spotify_data[-trainIndex,]
+preprocess = preProcess(spotify_data, method = c("center", "scale"))
+TrainTransformed = predict(preprocess, Train)
+TestTransformed = predict(preprocess, Test)
+```
+
+## Running A linear Model
+Here, when we choose to run the model, we need to tell it to exclude the title, genre, and artist as there are many of these in the data and this will affect the accuracy of the results. Based on the results that we have, the only variables that play any influence on our response variable are year.released, live, and top.year. This
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+model_lr = train(pop~.-title-top.genre-artist, data = Train, method = "lm")
+summary(model_lr)
+```
+
+We also find that the R-squared metric is 0,1255, meaning that with this data, we can explain 12.55% of the variance in the data, which is not very good. 
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+model_lr
+```
+## Ridge Model
+The benefit of using a ridge model is that we can make predictions with any type of variable, regardless of whether or not it's categorical or continuous. Another benefit of this model is that it can help up run multiple scenarios with making predictions and also eliminates multicolinnearity in the data. We can also call for a plot to be made indicating the fit of the model. From the results of the plot, we find that the model is a poor fit.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+alpha = 0
+lambda = seq(from = 0, to = 200, length = 11)
+grid = expand.grid(alpha, lambda)
+colnames(grid) = c("alpha", "lambda")
+
+model_ridge = train(pop~.-title-artist-top.genre,data = Train, method = "glmnet", tuneGrid = grid)
+model_ridge
+
+ridge_prediction <-predict(model_ridge, newdata = Train)
+
+prediction <- tibble(ridge_prediction = ridge_prediction, observed = TrainTransformed$pop)
+
+
+prediction %>% ggplot(aes(x = observed, y = ridge_prediction)) + geom_point() + geom_smooth(method = "lm")
+```
+## Lasso Model
+The next we can try and run is Lasso Regression. Lasso Regression has the benefit of shrinking or minimizing variables in the data set to avoid over fitting. Up to this point, we don't really have a way of controlling that. We use the same parameters from the Ridge Model on the Lasso model. Much like the Ridge Model, the plot to show the fit indicates that it is once again a poor fit.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+alpha = 0
+lambda = seq(from = 0, to = 1, length = 11)
+grid = expand.grid(alpha, lambda)
+colnames(grid) = c("alpha", "lambda")
+
+model_lasso =  train(pop~.-title-artist-top.genre,data = Train, method = "glmnet", tuneGrid = grid)
+model_lasso
+
+lasso_prediction <- predict(model_lasso, newdata = Train)
+
+prediction <- tibble(lasso_prediction = lasso_prediction, observed = TrainTransformed$pop)
+
+prediction %>% ggplot(aes(x = observed, y = lasso_prediction)) + geom_point() + geom_smooth(method = "lm")
+```
+## MARS Model
+A MARS (Multivariate Adaptive Regression Splines) model is a model that can be used to model a non-linear relationship between a response variables and other variables within our data-set. We went out of our way to eliminate the categorical variables in the results with the previous two models. We can also once again call for a plot to be made showing the fit of this model. The plot indicates that this model is a poor fit. In fact, its a probable argument that this model maybe a poorer fit than the first two models.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+nprune = 4:5
+degree = 1:2
+grid = expand.grid(nprune, degree)
+colnames(grid) = c("nprune", "degree")
+model_mars = train(pop~.-title-artist-top.genre,data = Train, method = "earth", tuneGrid = grid)
+summary(model_mars)
+
+mars_prediction <- predict(model_mars, newdata = Train)
+
+prediction <- tibble(mars_prediction = mars_prediction, observed = TrainTransformed$pop)
+
+prediction %>% ggplot(aes(x = observed, y = mars_prediction)) + geom_point() + geom_smooth(method = "lm")
+```
+
+
+
+## Which model is the best (Supervised)?
+When we ran each of the three model, we found that they were not great fits. However, how well they fit doesn't translate to how good they are in terms of accuracy. To determine this, we can run the R2 function, which tells use how accurate the model is. From the R2 results, we actually find that both the ridge and lasso model have the exact same accuracy, so the best model is either lasso or ridge. The mars model ultimately turned out to have the poorest accuracy at 15% while ridge and lasso both had a 19% accuracy.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+R2(predict(model_ridge, Train), Train$pop)
+R2(predict(model_lasso, Train), Train$pop)
+R2(predict(model_mars, Train), Train$pop)
+```
+## Which is the best approach, Supervised or Unsupervised?
+With this data, we have looked at two different ways to run experiments and algorithms with it. We can use the Unsupervised approach with Principal components analysis or used the Ridge, Lasso, and Mars models which fall under the supervised approach. There isn't necessarily a right or wrong approach. What matters is the results that you get from them. From running these approaches, we find that with the supervised approach, we find that those models do not explain a lot of the variance in the data and the models aren't accurate (6-20%). With the PCA however, we find that we can use a certain number of components to explain more variation within our data. Therefore, the best approach to with this data is the Unsupervised approach. 
+
+## Improvements
+One way that we can improve this model is by using data that does not have artist names, as this can maybe improve our results and not require cutting it from the results. We may also want to use more factors to determine the popularity of the song, which may help improve the accuracy of the models in the supervised learning approach as well as PCA's in the Unsupervised learning approach. 
