@@ -24,7 +24,9 @@ Worked with data on Rat diet trials, where the water they drank had a chemical i
 # Project 1
 Worked with data on student grades in a math class and wanted to see what were the biggest contributing factors to the students sucess/lack of sucess. Worked with Linear Models
 # Project 2
-
+Worked with data to see what contributing factors influced customer satisfaction for. Worked with Linear efect and backwards model.
 # Project 3
+Worked with data on a drug trial and its effects on memory priming (the idea that exposure to one stimulus may influence a response to a subsequent stimulus, without conscious guidance or intention). Used Linear Model, Poisson Regressions, and Mixed-Effects model to determine which variables played a major role in sucessful priming.
+
 
 
