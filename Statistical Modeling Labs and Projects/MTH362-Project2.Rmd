@@ -1,0 +1,107 @@
+---
+title: "Airline Customer Satisfaction"
+author: "Emmanuel Rayappa"
+date: "3/29/2022"
+output: pdf_document
+---
+
+# Introduction
+
+In this project, we are going to be looking at Data on Airline Customer Satisfaction. This has been a subject of recent importance as the COVID-19 Pandemic caused Airlines to scale back on certain aspects of flying. Some of the modifications that have occurred are the removal of In-Flight Magazines,Meal Service,so on and so forth. This can cause people to not enjoy the experience of flying as much anymore or even hate it more than they already did, but is this statement necessarily true? To find out, we can use a data set known as Customer Rating, a data set from Kaggle with 25893 observations and 25 variables ranging from the overall customer satisfaction to the delay the customer experienced or the rating of the wifi. 
+
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(pscl)
+library(RColorBrewer)
+```
+
+
+# EDA
+
+We can begin by doing some explanatory data analysis. Some of the immediate questions that we may have is what the average duration of delay was for these customers? We can use a Box-Plot to see what the average delay was. In this case, we find that on average, there was a 0 minute delay, meaning that flights customers were on tended to be on-time. However, there are out-liers which indicate delays ranging from approximately 50-900 minutes. We can also ask what the Ratio of Male to Female Customers is. From the Bar Plot, we find that there a few more Female Customers compared to Male Customer, so the proportion of Female to Male customers is greater than 1. Another interesting, but also important question to ask is how the ratings on the 1-5 scale are distributed. Are they evenly distributed? Upon using a bar plot, we find that this variable is skewed to the right as there are many rating of 4 compared to 1,2,3,and 5, which is worth noting as this will become important when deciding on models.
+
+```{r,echo=FALSE,warning=FALSE}
+customer_rating <- read.csv("test.csv")
+customer_rating<- na.omit(customer_rating)                                # Cleaning the data
+customer_rating_new<- customer_rating                                     # Duplicate data
+customer_rating_new$satisfaction = as.factor(customer_rating_new$satisfaction)
+
+customer_rating_new %>% ggplot(aes(x = Arrival.Delay.in.Minutes)) + geom_boxplot(aes(fill = satisfaction))+ coord_flip()
+customer_rating_new %>% ggplot(aes(x = Inflight.service)) + geom_bar()
+customer_rating_new %>% ggplot(aes(x = Gender)) + geom_bar(aes(fill = Gender))
+
+```
+# Establishing a Response Variable
+In this case, we are interested in what variables within the data have an influence on the variable dealing with the overall satisfaction, which in this case is Inflight.service. From the results of the Linear model, we see that there are many variables that carry an influence. Some of these variables are whether or not the customer is a Male, Their Age, Reason for travel, class (Economy, Economy+, or First/Business Class), Distance of the journey and the amount of leg room in the seat.
+
+```{r, message=FALSE, echo=FALSE}
+model_lm = lm(Inflight.service~., data = customer_rating_new)
+summary(model_lm)
+```
+# Accuracy and Fit of the model
+From running the linear model, we can see some of the early results in terms of accuracy, and we see that our linear model can explain 81.37% of the variance in the data. This is actually pretty good, but just because we can explain so much of the variance doesn't necessarily mean that the model is a good fit as we find the accuracy of the model(indicated by R-Squared) to be at 52.5%, which is not too good. To further evaluate if the model is a good fit, we can use a residual plot. From the plots, we can see that while the Linear Model is a good in terms of accuracy, it's actually not good in terms of fitting a normality trend. 
+
+```{r, warning=FALSE,echo=FALSE}
+
+par(mfrow = c(2,2))
+plot(model_lm)
+```
+
+# Running a Backwards Model
+
+The next model to try and run is a Backwards model. With this model, the benefit of it is that it can automatically run a model and determine which variables are needed and which are not. 
+
+```{r,echo=FALSE, message=FALSE}
+model_backward = step(model_lm, direction = "backward")
+```
+
+```{r,echo=FALSE,message=FALSE}
+summary(model_backward)
+```
+From the Backwards Model, we find that these variables are of influence: Inflight.service + id+  Gender + Customer.Type + Age + Type.of.Travel + Class + Inflight.wifi.service + Departure.Arrival.time.convenient + Ease.of.Online.booking + Food.and.drink + Seat.comfort + 
+Inflight.entertainment + On.board.service + Leg.room.service + 
+Baggage.handling + Checkin.service + Cleanliness + Arrival.Delay.in.Minutes + satisfaction.
+
+The linear model does not actually take into account how relevant every variable of influence is. With the Reverse, model, we use the variables that the linear model says are relevant and evaluates them accordingly. Even though this model is better in terms of efficiency, it does not necessarily mean that it will be a better fit. After this model runs, we find that it has an adjusted R-squared of 52.5
+
+From the results of the residual plot, we find that the model is actually a poorer fit when compared to the linear model as normality is almost non-existent with this mode. 
+```{r,echo=FALSE,warning=FALSE}
+par(mfrow = c(2,2))
+plot(model_backward)
+```
+# Running a poisson model
+From running a linear mode, we can see that we can explain 81.37% of our variability, but our model does not make for a good fit in terms of normality. Is there another model that we can try to run with our data? Yes and the model that we can use is a poisson model. We can already predict that the poisson model will be a better fit because with our response variable, we saw some form of skewness and the poisson model is perfect for running this. We can pick another variable that we have found to have some sort of influence and run the model. In this case, we can run a comparison between the Inflight.service variable and the Arrival.Delay.in.Minutes variable. Between the two variables, we find that a one unit increase (In this case, the minutes delay) will lead to an 8% decrease in the Inflight.Service rating, which is something that we would expect as delays can cause issues with air travel. We can even run a confidence interval on our model and a scatter plot and this very much confirms our initial prediction that for every increase in delay time, the rating will drop. The Scatter plot does very much confirm this hypothesis.
+
+```{r, warning==FALSE, echo=FALSE}
+model_pois = glm(Arrival.Delay.in.Minutes~Inflight.service, data = customer_rating_new, family = "poisson")
+summary(model_pois)
+exp(-0.128248)
+
+confint(model_pois)
+customer_rating_new %>% ggplot(aes(x = Inflight.service,y = Arrival.Delay.in.Minutes)) + geom_point(col = "navy") + coord_flip()
+
+```
+
+Now we have done an model with just two variables, one being our response variable of distance and the other being the variable regarding the delay time, we can try and run another poisson model, but with all of the variables that carry influence. To do this, we can simply repeat the process that we did with the previous Poisson model except we tell the model to exclude the variables that don't carry influence. Once again, we can calculate the exponential of the intercepts Estimate.Std to determine how much the rating will change by if any of the variables change. Upon doing this, we find that the rating changes by nearly 2% if any of the variables increase by 1.
+
+```{r, warning=FALSE, echo=FALSE}
+model_pois2 = glm(Inflight.service~. - Departure.Delay.in.Minutes-Online.boarding-Flight.Distance -Inflight.wifi.service-Ease.of.Online.booking - Online.boarding, data = customer_rating_new, family = "poisson")
+summary(model_pois2)
+exp(5.863e-01)
+```
+
+We now can run a Residual plot to see if the second Poisson model is a good fit. Upon examination, we find that indeed this model is a fair fit.
+
+```{r,warning=FALSE,echo=FALSE}
+par(mfrow = c(2,2))
+plot(model_pois2)
+```
+# Final model
+We have now seen many ways in which we can model this data. While there are many ways, only one of these models will be able to do the best job with presenting and accurately explain the data. We have run models from Poisson, to linear, to a backwards model. Between these 3, the model that is the best is the linear model. The reason that this is the case is with this model, it's residual plots are the closest to being considered normal. While I said earlier that the Backwards model had the more efficient method of fitting a good model. However, it'd residual  plots did not come close to being considered normal when compared to the Linear Model's plots. We were also able to explain 81.37% of the variability in the data with this model, which is pretty good. 
+
+# Improvements
+To make this data set better and even more interesting, one thing that would be worth knowing is which airlines are featured in the survey as this can help us to see which airlines tend to do better in terms of the Inflight-Service and which ones don't. Another stat that is worth noting is collecting data on is whether or not the flight was classified as domestic or international. This can be viewed as important as there may not as many amenities in flight such as food and WiFi if the flight is considered domestic. 
