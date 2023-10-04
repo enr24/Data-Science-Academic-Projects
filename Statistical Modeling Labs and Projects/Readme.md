@@ -7,7 +7,7 @@ Worked with linear regression and used in on data set with information on Pengui
 Wored with college enrollment information to determine future enrollment at colleges.
 # Lab 3 
 Worked with data on elephant mating to see if age in male played a role with the probability of mating occuring.
- #Lab 4
+# Lab 4
 Used Poisson Model to work with data about the movement of female crabe which had a sattleite attached to them.
 # Lab 5
 Worked out various word problems to find the canonical link in a given function.
@@ -18,5 +18,13 @@ Worked with data on electronic circuts to predict which ones had defects. Learne
 # Lab 8
 Worked with data on demin material for a jeans company to determine how much material will be wasted and which company to go with. Used lienar model and mixed-effects linear model.
 # Lab 9
-
+Worked with data on Blood Coagulation times on a variety of animals. Learned how to work with mixed effects model.
 # Lab 10
+Worked with data on Rat diet trials, where the water they drank had a chemical in it, and researchers wanted to determine if the chemical caused the rat to gain or lose weight. Worked with Linear Models and Mix effects model.
+# Project 1
+Worked with data on student grades in a math class and wanted to see what were the biggest contributing factors to the students sucess/lack of sucess. Worked with Linear Models
+# Project 2
+
+# Project 3
+
+
