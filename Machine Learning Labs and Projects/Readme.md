@@ -6,4 +6,8 @@ Worked with data on Bluejays that were spopted near Oberlin College. Learned abo
 # Lab 3
 Worked with data on Credit Card holders. Learned to work with the K-nearest neightbors model, and determined how many K's yielded the most optimal model.
 # Lab 4
-Worked with data on houses in Ames to predict how much will cost and what factors influence the selling price. Also worked with data on White Wine to see what factors into a wine being deemed high quality. Wroked with Lasso, Ridge, and Splie Model and hwo to determine which one was more accurate and which one's are considered a better fit. 
+Worked with data on houses in Ames to predict how much a house will cost and what factors influence the selling price. Also worked with data on White Wine to see what factors into a wine being deemed high quality. Learned about the Lasso, Ridge, and Splie Model and hwo to determine which one was more accurate and which one's are considered a better fit. 
+# Lab 5
+Worked with data on houses in Ames to predict how much a house will cost and what factors influence the selling price. Learned about Mars Model, Target and Featured Engineering.
+# Lab 6
+Worked with data on glass found at crimes scenes. The goal is to try to identiy they type of glass at a crime scene. Learned about Classififcation Trees and Random Forests.
