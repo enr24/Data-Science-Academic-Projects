@@ -11,3 +11,17 @@ Worked with data on houses in Ames to predict how much a house will cost and wha
 Worked with data on houses in Ames to predict how much a house will cost and what factors influence the selling price. Learned about Mars Model, Target and Featured Engineering.
 # Lab 6
 Worked with data on glass found at crimes scenes. The goal is to try to identiy they type of glass at a crime scene. Learned about Classififcation Trees and Random Forests.
+# Lab 7 
+Worked with the Smiley Data set, which consists of 2 Gaussian eyes, a trapezoid nose and a parabula mouth (with vertical Gaussian noise). Goal was to see if a machine learning algorithm would be able to identify a non-linear pattern vs a Linear Pattern.
+# Lab 8 
+Worked with Data on Boston Housing and applied Principal Components Analysis to the Data set. Also applied PCA to Data on Plastic Pollution, Makeup Shades, and Deforestation in Brazil.
+# Lab 9
+Worked with Data on Bob Ross Paintings and data about alcoholic consumption. Learned about clusters and how to interpret them. Also applied clusters on Plastic Pollution, Makeup Shades, and Deforestation in Brazil datasets from Lab 8.
+# Lab 10
+Learned about how to work with Nerual Networks. Worked with dataset on White Wine and Online Shoppers.
+# Project 1 
+Worked with data on Online Shoppers. Goal was to see what factors influenced whether or not a person bought something or not. Compared Naive-Bayes and Logistic Regression Model. 
+# Project 2
+Worked with data on College Students and how far away they are from their howetown. Worked with Logsitcs Regression, Lasso, Ridge, and Mars Models.
+# Project 3
+Worked with data on Spotify Songs to see what factors made the sone more popular versus other songs. Used Logistic Regression, Principal Components Analysis, and Lasso, Ridge, and Mars Models. Also focused on supervised and unsupervised learning to determine which one was more approriate for this partical dataset.
