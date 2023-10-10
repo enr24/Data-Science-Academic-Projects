@@ -13,4 +13,8 @@ Learned aboout web scrapping and how to extract data from a website (indeed.com)
 # Lab 6
 Worked with data on North Carolina Births. Learned about the hypothesis test,p-value,and density plots and how to program it. Repeated same new concpets with data on white-wine quality. 
 # Lab 7
-Worked with data on Vinho Verde. Learned about Test and Train data and how to conduct simple Machine Learning. Learned about classification trees and how to interpret them.
+Worked with data on Vinho Verde wine. Learned about Test and Train data and how to program simple Machine Learning algorithms. Learned about classification trees, decision trees, and random forests and how to interpret them. Goal was to predict which wines would be high-quality vs low-quality.
+# Lab 8
+Worked with email data. Learend about K-nearest neighbors and artifical nerual networks to try and predict which emails would be considered spam vs which ones were not. 
+# Lab 9
+Worked with United States Crime Data. Learned about Principal Compnents Analysis and how to program it. Also learned about clustering and distance matrix.
