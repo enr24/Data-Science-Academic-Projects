@@ -18,3 +18,13 @@ Worked with data on Vinho Verde wine. Learned about Test and Train data and how 
 Worked with email data. Learend about K-nearest neighbors and artifical nerual networks to try and predict which emails would be considered spam vs which ones were not. 
 # Lab 9
 Worked with United States Crime Data. Learned about Principal Compnents Analysis and how to program it. Also learned about clustering and distance matrix.
+# Mini-Project 1
+Worked with data on Marvel Characters and DC Characters. Compared the two datasets to see which dataset had more male characters vs female cahracters and which dataset has more frequent characters(Made an apperance more than 100 times). Also dtermined what was the most common eye-color for the frequent characters.
+# Mini-Project 2
+Applied webscrapping data on profootball reference and extracted data on passing yards leaders. Wanted to see if the leaders passing yards decreased or increased over the years. 
+# Mini-Project 3
+Worked with data on credit cards. Applied basic Machine-Learning concepts to the dataset (Test,Train,Random Forest, Tree Model).
+# Mini-Project 4
+Worked with Southwest Airlines and Alaska Airlines Fleet information. Wanted to see which carrier had the younger fleet and which one was truly "All Boeing".
+# Final Project
+Worked with data on Airplane crashes. Wanted to see which airplane model (Boeing 737, Airbus A330) and which airline had the most fatalities amongst passengers and crew members.
